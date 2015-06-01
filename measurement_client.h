@@ -12,7 +12,7 @@ using boost::asio::ip::icmp;
 
 class MeasurementClient {
 public:
-  MeasurementClient(boost::asio::io_service& io_service, servers_ptr const& servers) :
+  MeasurementClient(boost::asio::io_service& io_service, servers_ptr const& servers) :    // TODO const& czy value?
       timer(io_service, boost::posix_time::seconds(0)),
       udp_socket(io_service), tcp_socket(io_service), icmp_socket(io_service),
       servers(servers) {
@@ -62,9 +62,12 @@ private:
   }
 
   void handle_udp_receive(const boost::system::error_code& error,
-      std::size_t /*bytes_transferred*/) {
+      std::size_t bytes_transferred) {
     if (error)
       throw boost::system::system_error(error);
+    std::cout << "CLI: odebrano pakiet UDP: ";
+    std::cout.write(recv_buffer.data(), bytes_transferred);
+    std::cout << std::endl;
 
     start_udp_receiving();
   }

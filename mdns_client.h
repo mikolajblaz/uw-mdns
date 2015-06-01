@@ -17,6 +17,15 @@ public:
 
     start_mdns_receiving();
     start_mdns_query(boost::system::error_code());
+
+    udp::resolver resolver(io_service);
+    udp::resolver::query query(udp::v4(), "localhost", "10001");
+    std::shared_ptr<udp::endpoint> udp_endpoint_ptr(new udp::endpoint(*resolver.resolve(query)));
+
+    std::shared_ptr<boost::asio::ip::address> ip_ptr(new boost::asio::ip::address(udp_endpoint_ptr->address()));
+    servers->insert(std::make_pair(*ip_ptr, Server(ip_ptr, udp_endpoint_ptr,
+                                                  std::shared_ptr<tcp::endpoint>(nullptr),
+                                                  std::shared_ptr<icmp::endpoint>(nullptr))));
   }
 
 
@@ -34,17 +43,21 @@ private:
     if (error)
       throw boost::system::system_error(error);
 
+    std::cout << "mDNS query!\n";
+
     std::shared_ptr<std::string> message(new std::string("mDNS query"));
-    udp_socket.async_send_to(boost::asio::buffer(*message), remote_udp_endpoint,
+    /*udp_socket.async_send_to(boost::asio::buffer(*message), remote_udp_endpoint,
         boost::bind(&MdnsClient::handle_mdns_send, this,
             boost::asio::placeholders::error,
             boost::asio::placeholders::bytes_transferred));
-
+*/
     reset_timer(MDNS_INTERVAL_DEFAULT);
   }
 
-  void handle_mdns_send(const boost::system::error_code& /*error*/,
+  void handle_mdns_send(const boost::system::error_code& error,
       std::size_t /*bytes_transferred*/) {
+    if (error)
+      throw boost::system::system_error(error);
     std::cout << "mDNS query successfully sent!\n";
   }
 

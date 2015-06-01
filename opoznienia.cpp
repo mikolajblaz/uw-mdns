@@ -15,7 +15,7 @@ int main(int argc, char const *argv[]) {
   boost::asio::io_service io_service;
 
   MdnsServer mdns_server(io_service);
-  //MdnsClient mdns_client(io_service, servers);
+  MdnsClient mdns_client(io_service, servers);
   //MeasurementServer measurement_server(io_service);
   MeasurementClient measurement_client(io_service, servers);
 
