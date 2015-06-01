@@ -5,7 +5,7 @@ LFLAGS	= -std=c++11 -Wall
 BOOST_DIR = /home/mikib/lib/C++/boost_1_58_0
 BOOST_FLAG = -lboost_system
 
-HEADERS = measurement_server.h measurement_client.h mdns_server.h mdns_client.h
+HEADERS = measurement_server.h measurement_client.h mdns_server.h mdns_client.h server.h common.h
 TARGET = opoznienia
 
 all: $(TARGET)

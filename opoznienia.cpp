@@ -4,6 +4,7 @@
 
 #include <map>
 #include "common.h"
+#include "server.h"
 #include "mdns_server.h"
 #include "mdns_client.h"
 #include "measurement_server.h"

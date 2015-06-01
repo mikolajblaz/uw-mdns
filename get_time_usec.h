@@ -7,4 +7,4 @@ inline uint64_t get_time_usec() {
     return timer.tv_sec * 1000000ULL + timer.tv_usec;
 }
 
-#endif
+#endif	// GET_TIME_USEC_H

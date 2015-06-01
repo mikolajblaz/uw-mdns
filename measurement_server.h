@@ -5,6 +5,7 @@
 #include "common.h"
 
 class MeasurementServer {
+  // taki jak czekamnaudp.c
   //TODO
 
 };
