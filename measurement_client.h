@@ -65,9 +65,9 @@ private:
       std::size_t bytes_transferred) {
     if (error)
       throw boost::system::system_error(error);
-    std::cout << "CLI: odebrano pakiet UDP: ";
+    std::cout << "CLIENT: odebrano pakiet UDP: ";
     std::cout.write(recv_buffer.data(), bytes_transferred);
-    std::cout << std::endl;
+    std::cout << " od adresu " << remote_udp_endpoint << std::endl;
 
     start_udp_receiving();
   }
