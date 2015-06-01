@@ -11,12 +11,13 @@ using boost::asio::ip::icmp;
 
 class MeasurementClient {
 public:
-  MeasurementClient(boost::asio::io_service& io_service, std::shared_ptr<servers_map> const& servers) :
+  MeasurementClient(boost::asio::io_service& io_service, servers_ptr const& servers) :
       timer(io_service, boost::posix_time::seconds(0)),
       udp_socket(io_service), tcp_socket(io_service), icmp_socket(io_service),
       servers(servers) {
     udp_socket.open(udp::v4());
-    init_measurements();
+    // TODO: TCP, ICMP?
+    start_measurements(boost::system::error_code());
   }
 
 
@@ -27,13 +28,19 @@ private:
   tcp::socket  tcp_socket;
   icmp::socket icmp_socket;
 
-  std::shared_ptr<servers_map> servers;
+  servers_ptr servers;
 
-  void init_measurements() {
+  void start_measurements(const boost::system::error_code& error) {
+    if (error)
+      throw boost::system::system_error(error);
+
     std::cout << "Measure UDP!\n";
 
+    // TODO może jeden obiekt czas?
     timer.expires_at(timer.expires_at() + boost::posix_time::seconds(MEASUREMENT_INTERVAL_DEFAULT));
-    timer.async_wait(boost::bind(&MeasurementClient::init_measurements, this));
+    timer.async_wait(boost::bind(&MeasurementClient::start_measurements, this,
+        boost::asio::placeholders::error)); // TODO errors
+    // TODO czy to działa?
   }
     
   
