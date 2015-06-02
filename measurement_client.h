@@ -29,13 +29,12 @@ public:
 
 private:
   boost::asio::deadline_timer timer;
+  boost::array<char, BUFFER_SIZE> recv_buffer;
 
   udp::socket  udp_socket;
   tcp::socket  tcp_socket;
   icmp::socket icmp_socket;
-
   udp::endpoint remote_udp_endpoint;
-  boost::array<char, BUFFER_SIZE> recv_buffer;
 
   servers_ptr servers;
 

@@ -31,15 +31,6 @@ public:
   }
 
 private:
-  std::shared_ptr<address>        ip;
-  std::shared_ptr<udp::endpoint>  udp_endpoint;
-  std::shared_ptr<tcp::endpoint>  tcp_endpoint;
-  std::shared_ptr<icmp::endpoint> icmp_endpoint;
-
-  std::list<time_type> finished[PROTOCOL_COUNT];
-  std::list<std::pair<long, time_type> > waiting[PROTOCOL_COUNT];
-  time_type delays_sum[PROTOCOL_COUNT];
-
   /* Wysyła pakiety UDP, TCP, ICMP do danego serwera. */
   void send_udp_query(time_type start_time, udp::socket& udp_socket) {
     std::cout << *ip << ": UDP query!\n";
@@ -97,6 +88,15 @@ private:
     std::cout << *ip << ": ICMP RECEIVE query!\n";
   }
 
+
+  std::shared_ptr<address>        ip;
+  std::shared_ptr<udp::endpoint>  udp_endpoint;
+  std::shared_ptr<tcp::endpoint>  tcp_endpoint;
+  std::shared_ptr<icmp::endpoint> icmp_endpoint;
+
+  std::list<time_type> finished[PROTOCOL_COUNT];
+  std::list<std::pair<long, time_type> > waiting[PROTOCOL_COUNT];
+  time_type delays_sum[PROTOCOL_COUNT];
 };
 
 #endif  // SERVER_H

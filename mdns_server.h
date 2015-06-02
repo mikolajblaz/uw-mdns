@@ -16,11 +16,6 @@ public:
   }
 
 private:
-  udp::socket udp_socket;
-  udp::endpoint remote_endpoint;
-  boost::array<char, BUFFER_SIZE> recv_buffer;
-
-
   void start_receive() {
     udp_socket.async_receive_from(
         boost::asio::buffer(recv_buffer), remote_endpoint,
@@ -56,7 +51,9 @@ private:
     }
   }
 
-
+  boost::array<char, BUFFER_SIZE> recv_buffer;
+  udp::socket udp_socket;
+  udp::endpoint remote_endpoint;
 };
 
 #endif  // MDNS_SERVER_H

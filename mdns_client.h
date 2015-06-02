@@ -37,16 +37,6 @@ public:
 
 
 private:
-  boost::asio::deadline_timer timer;
-
-  udp::socket  udp_socket;
-  udp::endpoint mdns_endpoint;
-  udp::endpoint mdns_remote_endpoint;
-
-  boost::array<char, BUFFER_SIZE> recv_buffer;
-
-  servers_ptr servers;
-
   void start_mdns_query(const boost::system::error_code& error) {
     if (error)
       throw boost::system::system_error(error);
@@ -97,6 +87,16 @@ private:
         boost::asio::placeholders::error)); // TODO errors
     // TODO czy to działa?
   }
+
+
+  boost::asio::deadline_timer timer;
+  boost::array<char, BUFFER_SIZE> recv_buffer;
+
+  udp::socket  udp_socket;
+  udp::endpoint mdns_endpoint;
+  udp::endpoint mdns_remote_endpoint;
+
+  servers_ptr servers;
 };
 
 
