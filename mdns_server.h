@@ -11,7 +11,7 @@ using boost::asio::ip::udp;
 class MdnsServer {
 public:
   MdnsServer(boost::asio::io_service& io_service) :
-      udp_socket(io_service, udp::endpoint(udp::v4(), MDNS_PORT_DEFAULT)) {
+      udp_socket(io_service, udp::endpoint(udp::v4(), MDNS_PORT_DEFAULT_NUM)) {
     start_receive();
   }
 

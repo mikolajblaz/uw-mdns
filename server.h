@@ -21,9 +21,9 @@ public:
   void send_queries(udp::socket& udp_socket, tcp::socket& tcp_socket, icmp::socket& icmp_socket) {
     // TODO nie za często te wywołania get_time_usec?
     time_type start_time = get_time_usec();
-    if (udp_endpoint != nullptr)  send_udp_query(start_time, udp_socket);
-    if (tcp_endpoint != nullptr)  send_tcp_query(start_time, tcp_socket);
-    if (icmp_endpoint != nullptr) send_icmp_query(start_time, icmp_socket);
+    if (udp_endpoint)  send_udp_query(start_time, udp_socket);
+    if (tcp_endpoint)  send_tcp_query(start_time, tcp_socket);
+    if (icmp_endpoint) send_icmp_query(start_time, icmp_socket);
   }
 
   void receive_query(long id) {

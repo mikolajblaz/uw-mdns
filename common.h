@@ -30,8 +30,10 @@ const int TTL_DEFAULT = 10;
 
 const int UDP_PORT_DEFAULT = 3382;
 const int UI_PORT_DEFAULT = 3673;
-const int MDNS_PORT_DEFAULT = 5354;
-const int SSH_PORT_DEFAULT = 22;
+const std::string MDNS_PORT_DEFAULT = "5353";
+const int MDNS_PORT_DEFAULT_NUM = 5353;		// TODO
+const std::string MDNS_ADDRESS_DEFAULT = "224.0.0.251";
+const std::string SSH_PORT_DEFAULT = "22";
 
 const int MEASUREMENT_INTERVAL_DEFAULT = 1;
 const int MDNS_INTERVAL_DEFAULT = 10;

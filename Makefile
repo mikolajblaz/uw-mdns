@@ -1,5 +1,5 @@
 CC	= g++
-CFLAGS	= -std=c++0x -Wall -g -I $(BOOST_DIR)
+CFLAGS	= -std=c++0x -Wall -Wno-sign-compare -g -I $(BOOST_DIR)
 LFLAGS	= -Wall
 
 BOOST_DIR = /home/mikib/lib/C++/boost_1_58_0
