@@ -4,6 +4,7 @@
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include "common.h"
+#include "get_time_usec.h"    // TODO włączyć do common
 #include "server.h"
 
 using boost::asio::ip::udp;
@@ -14,7 +15,7 @@ class MeasurementClient {
 public:
   MeasurementClient(boost::asio::io_service& io_service, servers_ptr const& servers) :    // TODO const& czy value?
       timer(io_service, boost::posix_time::seconds(0)),
-      udp_socket(io_service), tcp_socket(io_service), icmp_socket(io_service),
+      udp_socket(io_service), icmp_socket(io_service),
       servers(servers) {
     udp_socket.open(udp::v4());
     // TODO: TCP, ICMP?
@@ -32,7 +33,6 @@ private:
   boost::array<char, BUFFER_SIZE> recv_buffer;
 
   udp::socket  udp_socket;
-  tcp::socket  tcp_socket;
   icmp::socket icmp_socket;
   udp::endpoint remote_udp_endpoint;
 
@@ -45,7 +45,7 @@ private:
 
     std::cout << "Init measurements!\n";
     for (auto it = servers->begin(); it != servers->end(); ++it) {
-      it->second.send_queries(udp_socket, tcp_socket, icmp_socket);
+      it->second.send_queries(udp_socket, icmp_socket);
     }
 
     reset_timer(MEASUREMENT_INTERVAL_DEFAULT);
@@ -62,11 +62,18 @@ private:
 
   void handle_udp_receive(const boost::system::error_code& error,
       std::size_t bytes_transferred) {
-    if (error)
+    if (error || bytes_transferred < sizeof(uint64_t))
       throw boost::system::system_error(error);
+    time_type end_time = get_time_usec();
+
     std::cout << "CLIENT: odebrano pakiet UDP: ";
     std::cout.write(recv_buffer.data(), bytes_transferred);
     std::cout << " od adresu " << remote_udp_endpoint << std::endl;
+
+    auto it = servers->find(remote_udp_endpoint.address());
+    if (it != servers->end()) { // else ignoruj pakiet
+      //it->second.receive_udp_query((std::string(recv_buffer), end_time)); //TODO
+    }
 
     start_udp_receiving();
   }

@@ -13,7 +13,7 @@ enum PROTOCOL { // TODO nedd it?
 };
 
 class Server;
-typedef std::map<boost::asio::ip::address, Server > servers_map;
+typedef std::map<boost::asio::ip::address, Server> servers_map;
 typedef std::shared_ptr<servers_map> servers_ptr;
 
 typedef uint64_t time_type;

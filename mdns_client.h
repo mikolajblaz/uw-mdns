@@ -10,8 +10,8 @@ using boost::asio::ip::udp;
 class MdnsClient {
 public:
   MdnsClient(boost::asio::io_service& io_service, servers_ptr const& servers) :
-      timer(io_service, boost::posix_time::seconds(0)), udp_socket(io_service),
-      servers(servers) {
+      timer(io_service, boost::posix_time::seconds(0)), io_service(io_service),
+      udp_socket(io_service), servers(servers) {
     /* inicjalizacja mdns_endpoint: */
     udp::resolver resolver(io_service);
     udp::resolver::query query(udp::v4(), MDNS_ADDRESS_DEFAULT, MDNS_PORT_DEFAULT);
@@ -32,7 +32,7 @@ public:
     std::shared_ptr<boost::asio::ip::address> ip_ptr(new boost::asio::ip::address(udp_endpoint_ptr->address()));
     servers->insert(std::make_pair(*ip_ptr, Server(ip_ptr, udp_endpoint_ptr,
                                                   std::shared_ptr<tcp::endpoint>(),
-                                                  std::shared_ptr<icmp::endpoint>())));
+                                                  std::shared_ptr<icmp::endpoint>(), io_service)));
   }
 
 
@@ -92,6 +92,7 @@ private:
   boost::asio::deadline_timer timer;
   boost::array<char, BUFFER_SIZE> recv_buffer;
 
+  boost::asio::io_service& io_service;
   udp::socket  udp_socket;
   udp::endpoint mdns_endpoint;
   udp::endpoint mdns_remote_endpoint;
