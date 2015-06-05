@@ -15,13 +15,10 @@ class MeasurementClient {
 public:
   MeasurementClient(boost::asio::io_service& io_service, servers_ptr const& servers) :    // TODO const& czy value?
       timer(io_service, boost::posix_time::seconds(0)),
-      udp_socket(io_service), icmp_socket(io_service),
+      udp_socket(io_service, udp::v4()), icmp_socket(io_service),
       servers(servers) {
-    udp_socket.open(udp::v4());
-    // TODO: TCP, ICMP?
 
     start_udp_receiving();
-    start_tcp_receiving();
     start_icmp_receiving();
 
     init_measurements(boost::system::error_code());
@@ -29,15 +26,6 @@ public:
 
 
 private:
-  boost::asio::deadline_timer timer;
-  boost::array<char, BUFFER_SIZE> recv_buffer;
-
-  udp::socket  udp_socket;
-  icmp::socket icmp_socket;
-  udp::endpoint remote_udp_endpoint;
-
-  servers_ptr servers;
-
   /* Inicjuje wysłanie pakietów rozpoczynających pomiar do wszystkich serwerów. */
   void init_measurements(const boost::system::error_code& error) {
     if (error)
@@ -72,23 +60,12 @@ private:
 
     auto it = servers->find(remote_udp_endpoint.address());
     if (it != servers->end()) { // else ignoruj pakiet
-      //it->second.receive_udp_query((std::string(recv_buffer), end_time)); //TODO
+      it->second.receive_udp_query(recv_buffer, end_time); //TODO
     }
 
     start_udp_receiving();
   }
 
-  void start_tcp_receiving() {
-    // TODO
-  }
-
-  void handle_tcp_receive(const boost::system::error_code& error,
-      std::size_t /*bytes_transferred*/) {
-    if (error)
-      throw boost::system::system_error(error);
-
-    start_tcp_receiving();
-  }
 
   void start_icmp_receiving() {
     // TODO
@@ -110,6 +87,16 @@ private:
         boost::asio::placeholders::error)); // TODO errors
     // TODO czy to działa?
   }
+
+
+  boost::asio::deadline_timer timer;
+  boost::array<char, BUFFER_SIZE> recv_buffer;
+
+  udp::socket  udp_socket;
+  icmp::socket icmp_socket;
+  udp::endpoint remote_udp_endpoint;
+
+  servers_ptr servers;
 };
 
 #endif  // MEASUREMENT_CLIENT_H

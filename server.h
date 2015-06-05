@@ -73,19 +73,20 @@ private:
     std::cout << *ip << ": Measurement query successfully sent!\n";
   }
 
-
-
-  void receive_udp_query(long id, time_type end_time) {
+public:     // TODO
+  void receive_udp_query(boost::array<char, BUFFER_SIZE>& recv_buffer, time_type end_time) {
     std::cout << *ip << ": UDP RECEIVE query!\n";
     long extracted_start_time;
-    extracted_start_time = id;
+    //extracted_start_time = id;        // TODO
     finish_waiting_query(extracted_start_time, end_time, PROTOCOL::UDP);
   }
+private:
   void receive_tcp_query(const boost::system::error_code& error, long id) {
     if (error)
       throw boost::system::system_error(error);
     std::cout << *ip << ": TCP RECEIVE query!\n";
     finish_waiting_query(id, get_time_usec(), PROTOCOL::TCP);
+    tcp_socket.close();
   }
   void receive_icmp_query(long id, time_type end_time) {
     std::cout << *ip << ": ICMP RECEIVE query!\n";
