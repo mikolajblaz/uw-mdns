@@ -4,6 +4,7 @@
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include "common.h"
+//#include "mdns_message.h"
 
 using boost::asio::ip::udp;
 using boost::asio::ip::address;
@@ -12,19 +13,19 @@ class MdnsClient {
 public:
   MdnsClient(boost::asio::io_service& io_service, servers_ptr const& servers) :
       timer(io_service, boost::posix_time::seconds(0)), io_service(io_service),
-      multicast_endpoint(address::from_string(MDNS_ADDRESS_DEFAULT), MDNS_PORT_DEFAULT_NUM),
+      multicast_endpoint(address::from_string(MDNS_ADDRESS), MDNS_PORT),
       send_socket(io_service, multicast_endpoint.protocol()),
       recv_socket(io_service), servers(servers) {
     /* dołączamy do grupy adresu 224.0.0.251, odbieramy na porcie 5353: */
     recv_socket.open(udp::v4());
     recv_socket.set_option(udp::socket::reuse_address(true));
-    recv_socket.bind(udp::endpoint(udp::v4(), MDNS_PORT_DEFAULT_NUM));    // port 5353
+    recv_socket.bind(udp::endpoint(udp::v4(), MDNS_PORT));    // port 5353
     recv_socket.set_option(boost::asio::ip::multicast::join_group(
-        address::from_string(MDNS_ADDRESS_DEFAULT)));     // adres 224.0.0.251
+        address::from_string(MDNS_ADDRESS)));     // adres 224.0.0.251
 
     /* nie pozwalamy na wysyłanie do siebie: */
     boost::asio::ip::multicast::enable_loopback option(false);
-    send_socket.set_option(option);     // TODO turn on?
+    //send_socket.set_option(option);     // TODO turn on?
 
     start_mdns_receiving();
     start_mdns_query(boost::system::error_code());
@@ -52,12 +53,15 @@ public:
 
 
 private:
-  /* Zapytanie mdns wysyłane w zadanych odstępach czasowych. */
+  /* Zapytanie mdns typu PTR o usługę _opozenienia._udp.local wysyłane
+     w zadanych odstępach czasowych. */
   void start_mdns_query(const boost::system::error_code& error) {
     if (error)
       throw boost::system::system_error(error);
 
     std::cout << "mDNS query!\n";
+
+    
 
     std::shared_ptr<std::string> message(new std::string("mDNS query"));
     send_socket.async_send_to(boost::asio::buffer(*message), multicast_endpoint,

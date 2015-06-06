@@ -4,7 +4,9 @@
 #include <map>
 #include <boost/asio/ip/address.hpp>
 
-//uint64_t get_time_usec();
+/* ################## typedefs #################### */
+
+//uint64_t get_time_usec();   // TODO
 
 enum PROTOCOL { // TODO nedd it?
 	UDP,
@@ -18,6 +20,9 @@ typedef std::shared_ptr<servers_map> servers_ptr;
 
 typedef uint64_t time_type;
 
+
+/* ################## constants #################### */
+
 const int PROTOCOL_COUNT = 3;
 const int BUFFER_SIZE = 100;
 
@@ -25,21 +30,23 @@ const int AVERAGED_MEASUREMENTS = 10;
 //const int MAX_DELAY
 const int MAX_DELAYED_QUERIES = 10;
 
-/* default values: */
+const int MDNS_PORT = 5353;     // TODO
+const std::string MDNS_ADDRESS = "224.0.0.251";
+const std::string MDNS_LISTEN_ADDRESS = "0.0.0.0";  //TODO może jednak??
+const std::string SSH_PORT = "22";
+
+
+/* ################## default values #################### */
+
 const int TTL_DEFAULT = 10;
 
 const int UDP_PORT_DEFAULT = 3382;
 const int UI_PORT_DEFAULT = 3673;
-const std::string MDNS_PORT_DEFAULT = "5353";
-const int MDNS_PORT_DEFAULT_NUM = 5353;		// TODO
-const std::string MDNS_ADDRESS_DEFAULT = "224.0.0.251";
-const std::string MDNS_LISTEN_ADDRESS_DEFAULT = "0.0.0.0";  //TODO może jednak??
-const std::string SSH_PORT_DEFAULT = "22";
 
 const int MEASUREMENT_INTERVAL_DEFAULT = 1;
 const int MDNS_INTERVAL_DEFAULT = 10;
 const float UI_REFRESH_INTERVAL_DEFAULT = 1.0;
-const bool BROADCAST_SSH_DEAFULT = false;
+const bool BROADCAST_SSH_DEFAULT = false;
 
 
 

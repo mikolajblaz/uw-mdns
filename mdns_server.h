@@ -12,19 +12,19 @@ using boost::asio::ip::address;
 class MdnsServer {
 public:
   MdnsServer(boost::asio::io_service& io_service) :
-      multicast_endpoint(address::from_string(MDNS_ADDRESS_DEFAULT), MDNS_PORT_DEFAULT_NUM),
+      multicast_endpoint(address::from_string(MDNS_ADDRESS), MDNS_PORT),
       send_socket(io_service, multicast_endpoint.protocol()),
       recv_socket(io_service) {
     /* dołączamy do grupy adresu 224.0.0.251, odbieramy na porcie 5353: */
     recv_socket.open(udp::v4());
     recv_socket.set_option(udp::socket::reuse_address(true));
-    recv_socket.bind(udp::endpoint(udp::v4(), MDNS_PORT_DEFAULT_NUM));    // port 5353
+    recv_socket.bind(udp::endpoint(udp::v4(), MDNS_PORT));    // port 5353
     recv_socket.set_option(boost::asio::ip::multicast::join_group(
-        address::from_string(MDNS_ADDRESS_DEFAULT)));     // adres 224.0.0.251
+        address::from_string(MDNS_ADDRESS)));     // adres 224.0.0.251
 
     /* nie pozwalamy na wysyłanie do siebie: */
     boost::asio::ip::multicast::enable_loopback option(false);
-    send_socket.set_option(option);     // TODO turn on?
+    //send_socket.set_option(option);     // TODO turn on?
 
     start_receive();
   }
