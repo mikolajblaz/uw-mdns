@@ -12,26 +12,34 @@ using boost::asio::ip::address;
 class MdnsServer {
 public:
   MdnsServer(boost::asio::io_service& io_service) :
-      udp_socket(io_service) {
-    udp::endpoint listen_endpoint(address::from_string(MDNS_LISTEN_ADDRESS_DEFAULT), MDNS_PORT_DEFAULT_NUM);
-    udp_socket.open(listen_endpoint.protocol());
-    udp_socket.set_option(udp::socket::reuse_address(true));
-    udp_socket.bind(listen_endpoint);
+      multicast_endpoint(address::from_string(MDNS_ADDRESS_DEFAULT), MDNS_PORT_DEFAULT_NUM),
+      send_socket(io_service, multicast_endpoint.protocol()),
+      recv_socket(io_service) {
+    /* dołączamy do grupy adresu 224.0.0.251, odbieramy na porcie 5353: */
+    recv_socket.open(udp::v4());
+    recv_socket.set_option(udp::socket::reuse_address(true));
+    recv_socket.bind(udp::endpoint(udp::v4(), MDNS_PORT_DEFAULT_NUM));    // port 5353
+    recv_socket.set_option(boost::asio::ip::multicast::join_group(
+        address::from_string(MDNS_ADDRESS_DEFAULT)));     // adres 224.0.0.251
 
-    udp_socket.set_option(boost::asio::ip::multicast::join_group(address::from_string(MDNS_ADDRESS_DEFAULT)));
+    /* nie pozwalamy na wysyłanie do siebie: */
+    boost::asio::ip::multicast::enable_loopback option(false);
+    send_socket.set_option(option);     // TODO turn on?
 
     start_receive();
   }
 
 private:
+  /* zlecenie asynchronicznego odbioru pakietów multicastowych */
   void start_receive() {
-    udp_socket.async_receive_from(
+    recv_socket.async_receive_from(
         boost::asio::buffer(recv_buffer), remote_endpoint,
         boost::bind(&MdnsServer::handle_receive, this,
           boost::asio::placeholders::error,
           boost::asio::placeholders::bytes_transferred));
   }
 
+  /* obsługa odebranego pakietu */
   void handle_receive(const boost::system::error_code& error,
       std::size_t bytes_transferred) {
     if (error)
@@ -39,11 +47,11 @@ private:
 
     std::cout << "mDNS SERVER: datagram received: [";
     std::cout.write(recv_buffer.data(), bytes_transferred);
-    std::cout << "]\n";
+    std::cout << "] from: " << remote_endpoint << ", ja: " << send_socket.local_endpoint() << "\n";
 
     boost::shared_ptr<std::string> message(new std::string("DNS Response"));
 
-    udp_socket.async_send_to(boost::asio::buffer(*message), remote_endpoint,
+    send_socket.async_send_to(boost::asio::buffer(*message), multicast_endpoint,
         boost::bind(&MdnsServer::handle_send, this, message,
           boost::asio::placeholders::error,
           boost::asio::placeholders::bytes_transferred));
@@ -58,14 +66,15 @@ private:
       std::cout << "Error in sending DNS response!\n";
       throw boost::system::system_error(error);
     } else {
-      std::cout << "mDNS SERVER: Sent DNS response!\n" << message;
+      std::cout << "mDNS SERVER: Sent DNS response: " << *message << std::endl;
     }
   }
 
   boost::array<char, BUFFER_SIZE> recv_buffer;
-  udp::socket udp_socket;
-  udp::endpoint remote_endpoint;
-  udp::endpoint mdns;
+  udp::endpoint multicast_endpoint;   // odbieranie na porcie 5353 z adresu 224.0.0.251
+  udp::endpoint remote_endpoint;      // endpoint nadawcy odbieranego pakietu
+  udp::socket send_socket;            // wysyłanie pakietów na multicast
+  udp::socket recv_socket;            // odbieranie z multicastowych
 };
 
 #endif  // MDNS_SERVER_H

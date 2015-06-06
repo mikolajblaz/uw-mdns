@@ -47,7 +47,8 @@ private:
 
   void send_tcp_query(time_type start_time) {
     std::cout << *ip << ": TCP query!\n";
-    add_waiting_query(tcp_id, start_time, PROTOCOL::TCP);       // TODO chyba trzeba osobne sockety :/
+    ++tcp_id;
+    add_waiting_query(tcp_id, start_time, PROTOCOL::TCP);       // TODO chyba trzeba osobne sockety (>=10) :/
 
     tcp_socket.async_connect(*tcp_endpoint,
         boost::bind(&Server::receive_tcp_query, this,
@@ -84,7 +85,7 @@ private:
   void receive_tcp_query(const boost::system::error_code& error, long id) {
     if (error)
       throw boost::system::system_error(error);
-    std::cout << *ip << ": TCP RECEIVE query!\n";
+    std::cout << *ip << ": TCP RECEIVE query! ID[" << id << "]\n";
     finish_waiting_query(id, get_time_usec(), PROTOCOL::TCP);
     tcp_socket.close();
   }

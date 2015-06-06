@@ -33,7 +33,7 @@ const int UI_PORT_DEFAULT = 3673;
 const std::string MDNS_PORT_DEFAULT = "5353";
 const int MDNS_PORT_DEFAULT_NUM = 5353;		// TODO
 const std::string MDNS_ADDRESS_DEFAULT = "224.0.0.251";
-const std::string MDNS_LISTEN_ADDRESS_DEFAULT = "0.0.0.0";
+const std::string MDNS_LISTEN_ADDRESS_DEFAULT = "0.0.0.0";  //TODO może jednak??
 const std::string SSH_PORT_DEFAULT = "22";
 
 const int MEASUREMENT_INTERVAL_DEFAULT = 1;
