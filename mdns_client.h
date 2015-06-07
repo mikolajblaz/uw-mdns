@@ -4,7 +4,7 @@
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include "common.h"
-//#include "mdns_message.h"
+#include "mdns_message.h"
 
 using boost::asio::ip::udp;
 using boost::asio::ip::address;
@@ -61,10 +61,16 @@ private:
 
     std::cout << "mDNS query!\n";
 
-    
+    /* Zapytanie PTR _opoznienia._udp.local. */
+    MdnsQuery query;
+    query.add_question(OPOZNIENIA_SERVICE, QTYPE::PTR); 
 
-    std::shared_ptr<std::string> message(new std::string("mDNS query"));
-    send_socket.async_send_to(boost::asio::buffer(*message), multicast_endpoint,
+    /* stworzenie pakietu: */
+    boost::asio::streambuf request_buffer;
+    std::ostream os(&request_buffer);
+    os << query;
+
+    send_socket.async_send_to(request_buffer.data(), multicast_endpoint,
         boost::bind(&MdnsClient::handle_mdns_send, this,
             boost::asio::placeholders::error,
             boost::asio::placeholders::bytes_transferred));
@@ -83,8 +89,10 @@ private:
 
   /* Zlecenie odbioru pakietów multicastowych. */
   void start_mdns_receiving() {
+    recv_stream_buffer.consume(recv_stream_buffer.size());  // wyczyść bufor
+
     recv_socket.async_receive_from(
-        boost::asio::buffer(recv_buffer), remote_endpoint,
+        recv_stream_buffer.prepare(BUFFER_SIZE), remote_endpoint,
         boost::bind(&MdnsClient::handle_mdns_receive, this,
           boost::asio::placeholders::error,
           boost::asio::placeholders::bytes_transferred));
@@ -100,9 +108,13 @@ private:
     if (error)
       throw boost::system::system_error(error);
 
-    std::cout << "mDNS CLIENT: datagram received: [";
-    std::cout.write(recv_buffer.data(), bytes_transferred);
-    std::cout << "]\n";
+    recv_stream_buffer.commit(bytes_transferred);
+
+    std::istream is(&recv_stream_buffer);
+    MdnsQuery query;
+    is >> query;
+
+    std::cout << "mDNS CLIENT: datagram received: [" << query << "]\n";
 
     start_mdns_receiving();
   }
@@ -120,6 +132,7 @@ private:
 
   boost::asio::deadline_timer timer;
   boost::array<char, BUFFER_SIZE> recv_buffer;
+  boost::asio::streambuf recv_stream_buffer;
 
   boost::asio::io_service& io_service;
   udp::endpoint multicast_endpoint;   // odbieranie na porcie 5353 z adresu 224.0.0.251

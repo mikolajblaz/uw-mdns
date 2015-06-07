@@ -24,16 +24,18 @@ typedef uint64_t time_type;
 /* ################## constants #################### */
 
 const int PROTOCOL_COUNT = 3;
-const int BUFFER_SIZE = 100;
+const int BUFFER_SIZE = 1000;     // TODO ile?
 
 const int AVERAGED_MEASUREMENTS = 10;
 //const int MAX_DELAY
 const int MAX_DELAYED_QUERIES = 10;
 
-const int MDNS_PORT = 5353;     // TODO
+const int MDNS_PORT = 5353;
 const std::string MDNS_ADDRESS = "224.0.0.251";
-const std::string MDNS_LISTEN_ADDRESS = "0.0.0.0";  //TODO może jednak??
+const std::string MDNS_LISTEN_ADDRESS = "0.0.0.0";  //TODO może jednak?? tak to usuwam
 const std::string SSH_PORT = "22";
+
+const std::string OPOZNIENIA_SERVICE = "_opoznienia._udp.local";
 
 
 /* ################## default values #################### */
