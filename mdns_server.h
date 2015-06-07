@@ -67,7 +67,7 @@ private:
             boost::asio::placeholders::bytes_transferred));
 
     } catch (InvalidMdnsMessageException e) {
-      std::cout << "mDNS SERVER: Ignoring packet... reason:" << e.what() << std::endl;
+      std::cout << "mDNS SERVER: Ignoring packet... reason: " << e.what() << std::endl;
     }
 
     start_receive();

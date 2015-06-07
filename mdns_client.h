@@ -118,7 +118,7 @@ private:
       std::cout << "mDNS CLIENT: datagram received: [" << response << "]\n";
 
     } catch (InvalidMdnsMessageException e) {
-      std::cout << "mDNS CLIENT: mDNS CLIENT: Ignoring packet... reason:" << e.what() << std::endl;
+      std::cout << "mDNS CLIENT: mDNS CLIENT: Ignoring packet... reason: " << e.what() << std::endl;
     }
 
     start_mdns_receiving();

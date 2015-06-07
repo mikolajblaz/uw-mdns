@@ -74,23 +74,28 @@ public:
   uint16_t auth_count()  { return (data[8] << 8) + data[9]; }
   uint16_t add_count()   { return (data[10] << 8) + data[11]; }
 
-  void id(uint16_t val)          { data[0] = val & 0x00FF; data[1] = val >> 8; }
-  void q_count(uint16_t val)     { data[4] = val & 0x00FF; data[5] = val >> 8; }
-  void ans_count(uint16_t val)   { data[6] = val & 0x00FF; data[7] = val >> 8; }
-  void auth_count(uint16_t val)  { data[8] = val & 0x00FF; data[9] = val >> 8; }
-  void add_count(uint16_t val)   { data[10] = val & 0x00FF; data[11] = val >> 8; }
+  void id(uint16_t val)          { data[0] = val >> 8; data[1] = val & 0x00FF; }
+  void q_count(uint16_t val)     { data[4] = val >> 8; data[5] = val & 0x00FF; }
+  void ans_count(uint16_t val)   { data[6] = val >> 8; data[7] = val & 0x00FF; }
+  void auth_count(uint16_t val)  { data[8] = val >> 8; data[9] = val & 0x00FF; }
+  void add_count(uint16_t val)   { data[10] = val >> 8; data[11] = val & 0x00FF; }
 
   friend std::istream& operator>>(std::istream& is, MdnsHeader& header) {
-    return is.read(reinterpret_cast<char*>(header.data), header_length);
+    for (int i = 0; i < 22; i++) {
+      is >> header.data[i];
+      std::cout << static_cast<unsigned int>(header.data[i]) << std::endl;
+    }
+    return is;
+    //return is.read(reinterpret_cast<char*>(header.data), MdnsHeader::header_length);
   }
 
   friend std::ostream& operator<<(std::ostream& os, MdnsHeader const& header) {
-    return os.write(reinterpret_cast<const char*>(header.data), header_length);
+    return os.write(reinterpret_cast<const char*>(header.data), MdnsHeader::header_length);
   }
 
 private:
   static const std::streamsize header_length = 12;    // dł. nagłówka w bajtach;
-  unsigned char data[header_length];             // dane nagłówka
+  unsigned char data[header_length + 10];             // dane nagłówka
 };  // class MdnsHeader
 
 
@@ -117,6 +122,10 @@ public:
   friend std::istream& operator>>(std::istream& is, MdnsDomainName& domain_name) {
     unsigned char next_length;
     char buffer[MAX_DOMAIN_LENGTH];
+    // print: TODO remove DEBUG
+    std::cout << std::endl << "Zawartość bufora:\n";
+    for (auto it = std::istream_iterator<char>(is); it != std::istream_iterator<char>(); it++)
+      std::cout << static_cast<unsigned int>(*it) << std::endl;
 
     /* wczytujemy kolejne nazwy domen. */
     is >> next_length;
