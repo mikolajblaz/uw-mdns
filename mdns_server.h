@@ -40,32 +40,34 @@ private:
           boost::asio::placeholders::bytes_transferred));
   }
 
-  /* obsługa odebranego pakietu */
+  /* Próbujemy przeczytać pakiet mDNS typu 'Query'. Zapytanie typu 'Response'
+   * jest ignorowane, zaś niepoprawne zapytanie typu 'Query' powoduje rzucenie
+   * (i złapanie) wyjątku.
+   * Następnie serwer odpowiada pakietem mDNS typu 'Response'. */
   void handle_receive(const boost::system::error_code& error,
       std::size_t bytes_transferred) {
     if (error)
       throw boost::system::system_error(error);
 
     recv_stream_buffer.commit(bytes_transferred);   // przygotowanie bufora
+    std::istream is(&recv_stream_buffer);
+    MdnsQuery query;
 
     try {
-      std::istream is(&recv_stream_buffer);
-      MdnsQuery query;
-      is >> query;                  // TODO żeby dało się oba wczytać jakoś
+      if (query.try_read(is)) {          // ignorujemy pakiety mDNS typu 'Response'
+        std::cout << "mDNS SERVER: datagram received: [" << query << "] from: " << remote_endpoint << "\n";
 
-      std::cout << "mDNS SERVER: datagram received: [" << query << "] from: " << remote_endpoint << "\n";
+        /* odpowiedź: */
+        MdnsResponse response = respond_to(query);
+        boost::asio::streambuf request_buffer;
+        std::ostream os(&request_buffer);
+        os << response;
 
-      /* odpowiedź: */
-      MdnsResponse response = respond_to(query);
-      boost::asio::streambuf request_buffer;
-      std::ostream os(&request_buffer);
-      os << query;
-
-      send_socket.async_send_to(request_buffer.data(), multicast_endpoint,
-          boost::bind(&MdnsServer::handle_send, this,
-            boost::asio::placeholders::error,
-            boost::asio::placeholders::bytes_transferred));
-
+        send_socket.async_send_to(request_buffer.data(), multicast_endpoint,
+            boost::bind(&MdnsServer::handle_send, this,
+              boost::asio::placeholders::error,
+              boost::asio::placeholders::bytes_transferred));
+      }
     } catch (InvalidMdnsMessageException e) {
       std::cout << "mDNS SERVER: Ignoring packet... reason: " << e.what() << std::endl;
     }
@@ -75,12 +77,9 @@ private:
 
   void handle_send(const boost::system::error_code& error,
       std::size_t /*bytes_transferred*/) {
-    if (error) {
-      std::cout << "mDNS SERVER: Error in sending DNS response!\n";
+    if (error)
       throw boost::system::system_error(error);
-    } else {
-      std::cout << "mDNS SERVER: Sent DNS response!" << std::endl;
-    }
+    std::cout << "mDNS SERVER: Sent DNS response!\n";
   }
 
 

@@ -98,7 +98,11 @@ private:
           boost::asio::placeholders::bytes_transferred));
   }
 
-  /* Obsługa pakietów multicastowych. Jeśli pakiet jest odpowiedzią typu:
+  /* Próbujemy przeczytać pakiet mDNS typu 'Response'. Zapytanie typu 'Query'
+   * jest ignorowane, zaś niepoprawne zapytanie typu 'Response' powoduje
+   * rzucenie (i złapanie) wyjątku.
+   *
+   * Jeśli pakiet jest odpowiedzią typu:
    * PTR - dopisuje nazwę nowego serwera do zbioru znanych nazw
    * A - odświeża TTL serwera lub tworzy instancję klasy Server reprezentującą
    *     go, jeśli jeszcze nie istnieje (lub dodaje nowy rodzaj protokołu).
@@ -109,13 +113,13 @@ private:
       throw boost::system::system_error(error);
 
     recv_stream_buffer.commit(bytes_transferred);   // przygotowanie bufora
+    std::istream is(&recv_stream_buffer);
+    MdnsResponse response;
 
     try {
-      std::istream is(&recv_stream_buffer);
-      MdnsResponse response;
-      is >> response;                  // TODO żeby dało się oba wczytać jakoś
-
-      std::cout << "mDNS CLIENT: datagram received: [" << response << "]\n";
+      if (response.try_read(is)) {          // ignorujemy pakiety mDNS typu 'Query'
+        std::cout << "mDNS CLIENT: datagram received: [" << response << "]\n";
+      }
 
     } catch (InvalidMdnsMessageException e) {
       std::cout << "mDNS CLIENT: mDNS CLIENT: Ignoring packet... reason: " << e.what() << std::endl;

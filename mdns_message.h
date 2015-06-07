@@ -19,11 +19,12 @@ const int MAX_DOMAIN_LENGTH = 255;   // maksymalna długość nazwy domeny w baj
 template <typename uintX_t>
 inline std::ostream& write_be(std::ostream& os, uintX_t val) {
   unsigned char c[sizeof(uintX_t)];
-  /* wypisujemy kolejne bajty, począwszy od najstarszego: */
+  /* wpisujemy kolejne bajty do tablicy, począwszy od najstarszego: */
   for (int i = 0; i < sizeof(uintX_t); i++) {
-    c[i] = static_cast<unsigned char>(val >> 8 * (sizeof(uintX_t) - 1 - i));
-    os << c[i];
+    c[i] = static_cast<unsigned char>(val >> CHAR_BIT * (sizeof(uintX_t) - 1 - i));
   }
+  /* wypisujemy całość: */
+  os.write(reinterpret_cast<const char *>(c), sizeof(uintX_t));
   return os;
 }
 
@@ -32,10 +33,11 @@ template <typename uintX_t>
 inline std::istream& read_be(std::istream& is, uintX_t& val) {
   unsigned char c[sizeof(uintX_t)];
   val = 0;
-  /* wczytujemy kolejne bajty, począwszy od najstarszego: */
+  /* wczytujemy wszystkie bajty: */
+  is.read(reinterpret_cast<char *>(c), sizeof(uintX_t));
+  /* interpretujemy je jako zapisane w kolejności big-endian: */
   for (int i = 0; i < sizeof(uintX_t); i++) {
-    is >> c[i];
-    val += c[i] << 8 * (sizeof(uintX_t) - 1 - i);
+    val += c[i] << CHAR_BIT * (sizeof(uintX_t) - 1 - i);
   }
   return is;
 }
@@ -55,38 +57,33 @@ public:
 
   /* gettery flag (w OPCODE i RCODE sprawdzamy tylko niepustość): */
   bool qr() const { return data[2] & 0x80; }     // query/response flag
-  bool opcode() const { return data[3] & 0x78; } // purpose of message
-  bool aa() const { return data[3] & 0x40; }     // authoritive answer  
-  bool tc() const { return data[3] & 0x20; }     // truncated message
+  bool opcode() const { return data[2] & 0x78; } // purpose of message
+  bool aa() const { return data[2] & 0x04; }     // authoritive answer  
+  bool tc() const { return data[2] & 0x02; }     // truncated message
   // pole RD, RA, Z, AD, CD jest ignorowane
-  bool rcode() const { return data[4] & 0x0F; }  // response code
+  bool rcode() const { return data[3] & 0x0F; }  // response code
 
   // /* settery: */
   void set_qr() { data[2] = data[2] | 0x80; }     // query/response flag
   // pole OPCODE musi zawierać 0
-  void set_aa() { data[3] = data[3] | 0x40; }     // authoritive answer  
-  void set_tc() { data[3] = data[3] | 0x20; }     // truncated message
+  void set_aa() { data[2] = data[2] | 0x04; }     // authoritive answer  
+  void set_tc() { data[2] = data[2] | 0x02; }     // truncated message
   // pole RD, RA, Z, AD, CD, RCODE musi zawierać 0
 
-  uint16_t id()          { return (data[0] << 8) + data[1]; }
-  uint16_t q_count()     { return (data[4] << 8) + data[5]; }
-  uint16_t ans_count()   { return (data[6] << 8) + data[7]; }
-  uint16_t auth_count()  { return (data[8] << 8) + data[9]; }
-  uint16_t add_count()   { return (data[10] << 8) + data[11]; }
+  uint16_t id()          { return (data[0] << CHAR_BIT) + data[1]; }
+  uint16_t q_count()     { return (data[4] << CHAR_BIT) + data[5]; }
+  uint16_t ans_count()   { return (data[6] << CHAR_BIT) + data[7]; }
+  uint16_t auth_count()  { return (data[8] << CHAR_BIT) + data[9]; }
+  uint16_t add_count()   { return (data[10] << CHAR_BIT) + data[11]; }
 
-  void id(uint16_t val)          { data[0] = val >> 8; data[1] = val & 0x00FF; }
-  void q_count(uint16_t val)     { data[4] = val >> 8; data[5] = val & 0x00FF; }
-  void ans_count(uint16_t val)   { data[6] = val >> 8; data[7] = val & 0x00FF; }
-  void auth_count(uint16_t val)  { data[8] = val >> 8; data[9] = val & 0x00FF; }
-  void add_count(uint16_t val)   { data[10] = val >> 8; data[11] = val & 0x00FF; }
+  void id(uint16_t val)          { data[0] = val >> CHAR_BIT; data[1] = val & 0x00FF; }
+  void q_count(uint16_t val)     { data[4] = val >> CHAR_BIT; data[5] = val & 0x00FF; }
+  void ans_count(uint16_t val)   { data[6] = val >> CHAR_BIT; data[7] = val & 0x00FF; }
+  void auth_count(uint16_t val)  { data[8] = val >> CHAR_BIT; data[9] = val & 0x00FF; }
+  void add_count(uint16_t val)   { data[10] = val >> CHAR_BIT; data[11] = val & 0x00FF; }
 
   friend std::istream& operator>>(std::istream& is, MdnsHeader& header) {
-    for (int i = 0; i < 22; i++) {
-      is >> header.data[i];
-      std::cout << static_cast<unsigned int>(header.data[i]) << std::endl;
-    }
-    return is;
-    //return is.read(reinterpret_cast<char*>(header.data), MdnsHeader::header_length);
+    return is.read(reinterpret_cast<char*>(header.data), MdnsHeader::header_length);
   }
 
   friend std::ostream& operator<<(std::ostream& os, MdnsHeader const& header) {
@@ -95,7 +92,7 @@ public:
 
 private:
   static const std::streamsize header_length = 12;    // dł. nagłówka w bajtach;
-  unsigned char data[header_length + 10];             // dane nagłówka
+  unsigned char data[header_length];                  // dane nagłówka
 };  // class MdnsHeader
 
 
@@ -122,17 +119,13 @@ public:
   friend std::istream& operator>>(std::istream& is, MdnsDomainName& domain_name) {
     unsigned char next_length;
     char buffer[MAX_DOMAIN_LENGTH];
-    // print: TODO remove DEBUG
-    std::cout << std::endl << "Zawartość bufora:\n";
-    for (auto it = std::istream_iterator<char>(is); it != std::istream_iterator<char>(); it++)
-      std::cout << static_cast<unsigned int>(*it) << std::endl;
 
     /* wczytujemy kolejne nazwy domen. */
-    is >> next_length;
+    read_be(is, next_length);
     while (next_length != 0 && domain_name.data.size() <= MAX_DOMAINS_DEPTH) {
       is.read(buffer, next_length);
       domain_name.data.push_back(std::string(buffer, next_length));    // TODO czy działa
-      is >> next_length;
+      read_be(is, next_length);
     }
     if (domain_name.data.size() > MAX_DOMAINS_DEPTH)
       throw InvalidMdnsMessageException("Too long fully qualified domain name");
@@ -193,15 +186,19 @@ public:
     questions.push_back(MdnsQuestion(domain_name, static_cast<uint16_t>(type)));
   }
 
+  bool try_read(std::istream& is) {
+    is >> header;
+    if (header.qr()) {            // to nie jest zapytanie
+      return false;
+    } else {
+      read_questions(is);   // zapytanie
+      return true;
+    }
+  }
+
   friend std::istream& operator>>(std::istream& is, MdnsQuery& query) {
     is >> query.header;
-    if (!query.header.valid_query_header())
-      throw InvalidMdnsMessageException("Invalid mDNS query header");
-    for (int i = 0; i < query.header.q_count(); i++) {
-      MdnsQuestion question;
-      is >> question;
-      query.questions.push_back(std::move(question));
-    }
+    query.read_questions(is);
     return is;
   }
 
@@ -214,6 +211,16 @@ public:
   }
 
 private:
+  void read_questions(std::istream& is) {
+    if (!header.valid_query_header())
+      throw InvalidMdnsMessageException("Invalid mDNS query header");
+    for (int i = 0; i < header.q_count(); i++) {
+      MdnsQuestion question;
+      is >> question;
+      questions.push_back(std::move(question));
+    }
+  }
+
   MdnsHeader header;
   std::vector<MdnsQuestion> questions;
 };  // class MdnsQuery
@@ -308,6 +315,16 @@ public:
     header.set_aa();
   }
 
+  bool try_read(std::istream& is) {
+    is >> header;
+    if (!header.qr()) {           // to nie jest odpowiedź
+      return false;
+    } else {
+      read_answers(is);         // odpowiedź
+      return true;
+    }
+  }
+
   /* dodanie odpowiedzi typu "PTR" */
   void add_answer(std::string const& query_name, QTYPE type, std::string const& server_name, uint16_t ttl) {
     header.ans_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
@@ -321,17 +338,9 @@ public:
         ttl, server_address));
   }
 
-
-
   friend std::istream& operator>>(std::istream& is, MdnsResponse& response) {
     is >> response.header;
-    if (!response.header.valid_response_header())
-      throw InvalidMdnsMessageException("Invalid mDNS response header");
-    for (int i = 0; i < response.header.ans_count(); i++) {
-      MdnsAnswer answer;
-      is >> answer;
-      response.answers.push_back(std::move(answer));
-    }
+    response.read_answers(is);
     return is;
   }
 
@@ -344,6 +353,16 @@ public:
   }
 
 private:
+  void read_answers(std::istream& is) {
+    if (!header.valid_response_header())
+      throw InvalidMdnsMessageException("Invalid mDNS response header");
+    for (int i = 0; i < header.ans_count(); i++) {
+      MdnsAnswer answer;
+      is >> answer;
+      answers.push_back(std::move(answer));
+    }
+  }
+
   MdnsHeader header;
   std::vector<MdnsAnswer> answers;
 };  // class MdnsResponse
