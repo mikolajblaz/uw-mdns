@@ -6,6 +6,7 @@
 
 #include <map>
 #include "common.h"
+#include "mdns_message.h"
 #include "server.h"
 #include "mdns_server.h"
 #include "mdns_client.h"

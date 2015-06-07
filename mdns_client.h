@@ -59,14 +59,14 @@ private:
     if (error)
       throw boost::system::system_error(error);
 
-    std::cout << "mDNS query!\n";
+    std::cout << "mDNS CLIENT: mDNS query!\n";
 
     /* Zapytanie PTR _opoznienia._udp.local. */
     MdnsQuery query;
     query.add_question(OPOZNIENIA_SERVICE, QTYPE::PTR); 
 
     /* stworzenie pakietu: */
-    boost::asio::streambuf request_buffer;
+    boost::asio::streambuf request_buffer;    // TODO można chyba skorzystać z gotowego
     std::ostream os(&request_buffer);
     os << query;
 
@@ -82,7 +82,7 @@ private:
       std::size_t /*bytes_transferred*/) {
     if (error)
       throw boost::system::system_error(error);
-    std::cout << "mDNS query successfully sent!\n";
+    std::cout << "mDNS CLIENT: mDNS query successfully sent!\n";
   }
 
 
@@ -108,13 +108,18 @@ private:
     if (error)
       throw boost::system::system_error(error);
 
-    recv_stream_buffer.commit(bytes_transferred);
+    recv_stream_buffer.commit(bytes_transferred);   // przygotowanie bufora
 
-    std::istream is(&recv_stream_buffer);
-    MdnsQuery query;
-    is >> query;
+    try {
+      std::istream is(&recv_stream_buffer);
+      MdnsResponse response;
+      is >> response;                  // TODO żeby dało się oba wczytać jakoś
 
-    std::cout << "mDNS CLIENT: datagram received: [" << query << "]\n";
+      std::cout << "mDNS CLIENT: datagram received: [" << response << "]\n";
+
+    } catch (InvalidMdnsMessageException e) {
+      std::cout << "mDNS CLIENT: mDNS CLIENT: Ignoring packet... reason:" << e.what() << std::endl;
+    }
 
     start_mdns_receiving();
   }

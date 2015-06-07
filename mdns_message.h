@@ -1,6 +1,11 @@
 #ifndef MDNS_MESSAGE_H
 #define MDNS_MESSAGE_H
 
+struct InvalidMdnsMessageException : public std::runtime_error {
+  InvalidMdnsMessageException() : std::runtime_error("Invalid mDNS message format") {};
+  InvalidMdnsMessageException(std::string const& what) : std::runtime_error(what) {};
+};
+
 enum class QTYPE : uint16_t {
   A = 1,
   PTR = 12
@@ -43,19 +48,24 @@ public:
     std::fill(data, data + sizeof(data), 0);
   }
 
-  /* gettery flag: */
+  /* Sprawdza poprawność nagłowka zapytania mDNS: */
+  bool valid_query_header()   { return !qr() && !opcode() && !rcode(); }
+  /* Sprawdza poprawność nagłowka odpowiedzi mDNS: */
+  bool valid_response_header() { return qr() && !opcode() && !rcode(); }
+
+  /* gettery flag (w OPCODE i RCODE sprawdzamy tylko niepustość): */
   bool qr() const { return data[2] & 0x80; }     // query/response flag
-  bool opcode() const { return data[3] & 0x78; } // purpose of message     // TODO czy niepuste
+  bool opcode() const { return data[3] & 0x78; } // purpose of message
   bool aa() const { return data[3] & 0x40; }     // authoritive answer  
   bool tc() const { return data[3] & 0x20; }     // truncated message
   // pole RD, RA, Z, AD, CD jest ignorowane
-  bool rcode() const { return data[4] & 0x0F; }  // response code           // TODO
+  bool rcode() const { return data[4] & 0x0F; }  // response code
 
   // /* settery: */
-  void qr() { data[2] = data[2] | 0x80; }     // query/response flag
+  void set_qr() { data[2] = data[2] | 0x80; }     // query/response flag
   // pole OPCODE musi zawierać 0
-  void aa() { data[3] = data[3] | 0x40; }     // authoritive answer  
-  void tc() { data[3] = data[3] | 0x20; }     // truncated message
+  void set_aa() { data[3] = data[3] | 0x40; }     // authoritive answer  
+  void set_tc() { data[3] = data[3] | 0x20; }     // truncated message
   // pole RD, RA, Z, AD, CD, RCODE musi zawierać 0
 
   uint16_t id()          { return (data[0] << 8) + data[1]; }
@@ -115,9 +125,8 @@ public:
       domain_name.data.push_back(std::string(buffer, next_length));    // TODO czy działa
       is >> next_length;
     }
-    if (domain_name.data.size() > MAX_DOMAINS_DEPTH) {
-      throw boost::system::system_error(boost::system::error_code());    // TODO ????????
-    }
+    if (domain_name.data.size() > MAX_DOMAINS_DEPTH)
+      throw InvalidMdnsMessageException("Too long fully qualified domain name");
     
     return is;
   }
@@ -177,6 +186,8 @@ public:
 
   friend std::istream& operator>>(std::istream& is, MdnsQuery& query) {
     is >> query.header;
+    if (!query.header.valid_query_header())
+      throw InvalidMdnsMessageException("Invalid mDNS query header");
     for (int i = 0; i < query.header.q_count(); i++) {
       MdnsQuestion question;
       is >> question;
@@ -210,13 +221,13 @@ public:
   MdnsResourceRecord(uint16_t type, uint16_t _class, uint32_t ttl, std::string const& server_name) :
       type(type), _class(_class), ttl(ttl), rr_len(server_name.size()), server_name(server_name) {
         if (type != static_cast<uint16_t>(QTYPE::PTR))
-          ;// TODO throw !
+          throw InvalidMdnsMessageException("Improper MdnsResourceRecord constructor used for RR type PTR");
       }
   /* rekord typu "A" - nieużywana nazwa */
   MdnsResourceRecord(uint16_t type, uint16_t _class, uint32_t ttl, uint32_t server_address) :
       type(type), _class(_class), ttl(ttl), rr_len(sizeof(server_address)), server_address(server_address) {
         if (type != static_cast<uint16_t>(QTYPE::A))
-          ;// TODO throw !
+          throw InvalidMdnsMessageException("Improper MdnsResourceRecord constructor used for RR type A");
       }
 
   friend std::istream& operator>>(std::istream& is, MdnsResourceRecord& rr) {
@@ -227,10 +238,10 @@ public:
     switch (rr.type) {
       case static_cast<uint16_t>(QTYPE::PTR): is >> rr.server_name; break;
       case static_cast<uint16_t>(QTYPE::A): read_be(is, rr.server_address); break;
-      default: throw boost::system::system_error(boost::system::error_code()); // TODO throw!
+      default: throw InvalidMdnsMessageException("Unrecognized RR type");
     }
     if (rr.server_name.size() != rr.rr_len)
-      throw boost::system::system_error(boost::system::error_code()); // TODO throw!
+      throw InvalidMdnsMessageException("Invalid server name length");
     return is;
   }
 
@@ -242,7 +253,7 @@ public:
     switch (rr.type) {
       case static_cast<uint16_t>(QTYPE::PTR): os << rr.server_name; break;
       case static_cast<uint16_t>(QTYPE::A): write_be(os, rr.server_address); break;
-      default: throw boost::system::system_error(boost::system::error_code()); // TODO throw!
+      default: throw InvalidMdnsMessageException("Unrecognized RR type");
     }
     return os;
   }
@@ -284,8 +295,8 @@ class MdnsResponse {
 public:
   /* konstruktor tworzy nagłówek mDNS i ustawia jego flagi na 0x8400 (bit QR i AA). */
   MdnsResponse() : header() {
-    header.qr();
-    header.aa();
+    header.set_qr();
+    header.set_aa();
   }
 
   /* dodanie odpowiedzi typu "PTR" */
@@ -305,6 +316,8 @@ public:
 
   friend std::istream& operator>>(std::istream& is, MdnsResponse& response) {
     is >> response.header;
+    if (!response.header.valid_response_header())
+      throw InvalidMdnsMessageException("Invalid mDNS response header");
     for (int i = 0; i < response.header.ans_count(); i++) {
       MdnsAnswer answer;
       is >> answer;

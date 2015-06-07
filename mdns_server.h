@@ -5,6 +5,7 @@
 #include <boost/bind.hpp>
 #include <boost/array.hpp>
 #include "common.h"
+#include "mdns_message.h"
 
 using boost::asio::ip::udp;
 using boost::asio::ip::address;
@@ -33,7 +34,7 @@ private:
   /* zlecenie asynchronicznego odbioru pakietów multicastowych */
   void start_receive() {
     recv_socket.async_receive_from(
-        boost::asio::buffer(recv_buffer), remote_endpoint,
+        recv_stream_buffer.prepare(BUFFER_SIZE), remote_endpoint,
         boost::bind(&MdnsServer::handle_receive, this,
           boost::asio::placeholders::error,
           boost::asio::placeholders::bytes_transferred));
@@ -45,32 +46,51 @@ private:
     if (error)
       throw boost::system::system_error(error);
 
-    std::cout << "mDNS SERVER: datagram received: [";
-    std::cout.write(recv_buffer.data(), bytes_transferred);
-    std::cout << "] from: " << remote_endpoint << ", ja: " << send_socket.local_endpoint() << "\n";
+    recv_stream_buffer.commit(bytes_transferred);   // przygotowanie bufora
 
-    boost::shared_ptr<std::string> message(new std::string("DNS Response"));
+    try {
+      std::istream is(&recv_stream_buffer);
+      MdnsQuery query;
+      is >> query;                  // TODO żeby dało się oba wczytać jakoś
 
-    send_socket.async_send_to(boost::asio::buffer(*message), multicast_endpoint,
-        boost::bind(&MdnsServer::handle_send, this, message,
-          boost::asio::placeholders::error,
-          boost::asio::placeholders::bytes_transferred));
+      std::cout << "mDNS SERVER: datagram received: [" << query << "] from: " << remote_endpoint << "\n";
+
+      /* odpowiedź: */
+      MdnsResponse response = respond_to(query);
+      boost::asio::streambuf request_buffer;
+      std::ostream os(&request_buffer);
+      os << query;
+
+      send_socket.async_send_to(request_buffer.data(), multicast_endpoint,
+          boost::bind(&MdnsServer::handle_send, this,
+            boost::asio::placeholders::error,
+            boost::asio::placeholders::bytes_transferred));
+
+    } catch (InvalidMdnsMessageException e) {
+      std::cout << "mDNS SERVER: Ignoring packet... reason:" << e.what() << std::endl;
+    }
 
     start_receive();
   }
 
-  void handle_send(boost::shared_ptr<std::string> message,
-      const boost::system::error_code& error,
+  void handle_send(const boost::system::error_code& error,
       std::size_t /*bytes_transferred*/) {
     if (error) {
-      std::cout << "Error in sending DNS response!\n";
+      std::cout << "mDNS SERVER: Error in sending DNS response!\n";
       throw boost::system::system_error(error);
     } else {
-      std::cout << "mDNS SERVER: Sent DNS response: " << *message << std::endl;
+      std::cout << "mDNS SERVER: Sent DNS response!" << std::endl;
     }
   }
 
+
+  MdnsResponse respond_to(MdnsQuery const& query) {
+    return MdnsResponse();
+  }
+
   boost::array<char, BUFFER_SIZE> recv_buffer;
+  boost::asio::streambuf recv_stream_buffer;
+
   udp::endpoint multicast_endpoint;   // odbieranie na porcie 5353 z adresu 224.0.0.251
   udp::endpoint remote_endpoint;      // endpoint nadawcy odbieranego pakietu
   udp::socket send_socket;            // wysyłanie pakietów na multicast
