@@ -16,7 +16,7 @@ int main(int argc, char const *argv[]) {
   servers_ptr servers(new servers_map);
   boost::asio::io_service io_service;
 
-  try {
+  //try {
   	MdnsServer mdns_server(io_service);
     MdnsClient mdns_client(io_service, servers);
     //MeasurementServer measurement_server(io_service);
@@ -24,7 +24,7 @@ int main(int argc, char const *argv[]) {
 
     io_service.run();
 
-  } catch (boost::system::system_error e) {               // TODO
+  /*} catch (boost::system::system_error e) {               // TODO
     //std::cerr << "Failed to start mDNS server: port " << MDNS_PORT_DEFAULT << " already in use!\n";
     std::cerr << "ERROR: " << boost::diagnostic_information(e) << std::endl;
   }

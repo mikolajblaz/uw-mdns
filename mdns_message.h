@@ -7,6 +7,8 @@ enum class QTYPE : uint16_t {
 };
 
 const uint16_t INTERNET_CLASS = 0x0001;
+const int MAX_DOMAINS_DEPTH = 10;    // maksymalna dpouszczalna głębokość drzewa domenowego
+const int MAX_DOMAIN_LENGTH = 255;   // maksymalna długość nazwy domeny w bajtach
 
 /* Wypisuje 'val' na strumień 'os' w formacie big endian. */
 inline std::ostream& write_be(std::ostream& os, uint16_t val) {
@@ -87,14 +89,17 @@ public:
 
   friend std::istream& operator>>(std::istream& is, MdnsDomainName& domain_name) {
     unsigned char next_length;
-    char buffer[256];    // maksymalna długość nazwy domeny to 255
+    char buffer[MAX_DOMAIN_LENGTH];
 
     /* wczytujemy kolejne nazwy domen. */
     is >> next_length;
-    while (next_length != 0) {
+    while (next_length != 0 && domain_name.data.size() <= MAX_DOMAINS_DEPTH) {
       is.read(buffer, next_length);
       domain_name.data.push_back(std::string(buffer, next_length));    // TODO czy działa
       is >> next_length;
+    }
+    if (domain_name.data.size() > MAX_DOMAINS_DEPTH) {
+      throw boost::system::system_error(boost::system::error_code());    // TODO ????????
     }
     
     return is;
