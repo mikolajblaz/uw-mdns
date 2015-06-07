@@ -142,14 +142,29 @@ public:
     return os;
   }
 
-  bool operator==(MdnsDomainName const& name) {
-    if (data.size() != name.data.size()) {
+  friend bool operator==(MdnsDomainName const& name1, MdnsDomainName const& name2) {
+    if (name1.data.size() != name2.data.size()) {
       return false;
     } else {
       int i = 0;
-      while (i < data.size() && data[i] == name.data[i])
+      while (i < name1.data.size() && name1.data[i] == name2.data[i])
         i++;
-      return i == data.size();
+      return i == name1.data.size();
+    }
+  }
+
+  /* Porównanie według kolejnych nazw domenowych. */
+  friend bool operator<(MdnsDomainName const& name1, MdnsDomainName const& name2) {
+    if (name1.data.size() == name2.data.size()) {
+      int i = 0;
+      while (i < name1.data.size() && name1.data[i] == name2.data[i])
+        i++;
+      if (i == name1.data.size())   // name1 == name2
+        return false;
+      else
+        return name1.data[i] < name2.data[i];
+    } else {
+      return name1.data.size() < name2.data.size();
     }
   }
 

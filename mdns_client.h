@@ -198,10 +198,10 @@ private:
   udp::socket recv_socket;            // odbieranie z multicastowych
 
   servers_ptr servers;
-  std::set<MdnsDomainName> known_udp_server_names;
-  std::set<MdnsDomainName> known_tcp_server_names;
-  MdnsDomainName opoznienia_service;
-  MdnsDomainName ssh_service;
+  std::set<MdnsDomainName> known_udp_server_names;  // zbiór znanych nazw serwerów udostępniających _opoznienia._udp
+  std::set<MdnsDomainName> known_tcp_server_names;  // zbiór znanych nazw serwerów udostępniających _ssh.local
+  const MdnsDomainName opoznienia_service;
+  const MdnsDomainName ssh_service;
 };
 
 

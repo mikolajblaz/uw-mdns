@@ -138,10 +138,10 @@ private:
   udp::socket send_socket;            // wysyłanie pakietów na multicast
   udp::socket recv_socket;            // odbieranie z multicastowych
 
-  uint32_t local_server_address;
-  MdnsDomainName local_server_name;
-  MdnsDomainName opoznienia_service;
-  MdnsDomainName ssh_service;
+  uint32_t local_server_address;      // rozgłaszane IP serwera
+  MdnsDomainName local_server_name;   // rozgłaszana nazwa serwera
+  const MdnsDomainName opoznienia_service;
+  const MdnsDomainName ssh_service;
 };
 
 #endif  // MDNS_SERVER_H
