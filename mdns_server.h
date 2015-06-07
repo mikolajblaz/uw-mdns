@@ -74,16 +74,18 @@ private:
       if (query.try_read(is)) {          // ignorujemy pakiety mDNS typu 'Response'
         std::cout << "mDNS SERVER: datagram received: [" << query << "] from: " << remote_endpoint << "\n";
 
-        /* odpowiedź: */
+        /* jeśli znamy jakąś odpowiedź: */
         MdnsResponse response = respond_to(query);
-        boost::asio::streambuf request_buffer;
-        std::ostream os(&request_buffer);
-        os << response;
+        if (!response.get_answers().empty()) {
+          boost::asio::streambuf request_buffer;
+          std::ostream os(&request_buffer);
+          os << response;
 
-        send_socket.async_send_to(request_buffer.data(), multicast_endpoint,
-            boost::bind(&MdnsServer::handle_send, this,
-              boost::asio::placeholders::error,
-              boost::asio::placeholders::bytes_transferred));
+          send_socket.async_send_to(request_buffer.data(), multicast_endpoint,
+              boost::bind(&MdnsServer::handle_send, this,
+                boost::asio::placeholders::error,
+                boost::asio::placeholders::bytes_transferred));
+        }
       }
     } catch (InvalidMdnsMessageException e) {
       std::cout << "mDNS SERVER: Ignoring packet... reason: " << e.what() << std::endl;
@@ -106,7 +108,10 @@ private:
     MdnsResponse response;
     std::vector<MdnsQuestion> questions = query.get_questions();
     for (int i = 0; i < questions.size(); i++) {
-      response.add_answer(answer_to(questions[i]));
+      try {
+        response.add_answer(answer_to(questions[i]));
+      }
+      catch (InvalidMdnsMessageException e) {}    // ignore unknown questions
     }
     return response;
   }

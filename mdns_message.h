@@ -162,7 +162,7 @@ private:
 class MdnsQuestion {
 public:
   MdnsQuestion() {}
-  MdnsQuestion(std::string const& domain_name, uint16_t qtype, uint16_t qclass = INTERNET_CLASS) :
+  MdnsQuestion(MdnsDomainName const& domain_name, uint16_t qtype, uint16_t qclass = INTERNET_CLASS) :
       name(domain_name), qtype(qtype), qclass(qclass) {}
 
   MdnsDomainName get_name() const { return name; }
@@ -198,7 +198,7 @@ public:
 
   const std::vector<MdnsQuestion>& get_questions() const { return questions; }
 
-  void add_question(std::string const& domain_name, QTYPE type) {
+  void add_question(MdnsDomainName const& domain_name, QTYPE type) {
     header.q_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
     questions.push_back(MdnsQuestion(domain_name, static_cast<uint16_t>(type)));
   }
@@ -263,6 +263,13 @@ public:
           throw InvalidMdnsMessageException("Improper MdnsResourceRecord constructor used for RR type A");
       }
 
+  uint16_t get_type() const { return type; }
+  uint16_t get__class() const { return _class; }
+  uint32_t get_ttl() const { return ttl; }
+  uint16_t get_rr_len() const { return rr_len; }
+  MdnsDomainName get_server_name() const { return server_name; }  // dla typu PTR
+  uint32_t get_server_address() const { return server_address; }  // dla typu A
+
   friend std::istream& operator>>(std::istream& is, MdnsResourceRecord& rr) {
     read_be(is, rr.type);
     read_be(is, rr._class);
@@ -309,6 +316,14 @@ public:
       name(name), rr(type, _class, ttl, server_name) {}
   MdnsAnswer(MdnsDomainName const& name, uint16_t type, uint16_t _class, uint32_t ttl, uint32_t server_address) :
       name(name), rr(type, _class, ttl, server_address) {}
+
+  MdnsDomainName get_name() const { return name; }
+  uint16_t get_type() const { return rr.get_type(); }
+  uint16_t get_class() const { return rr.get__class(); }
+  uint32_t get_ttl() const { return rr.get_ttl(); }
+  uint16_t get_rr_len() const { return rr.get_rr_len(); }
+  MdnsDomainName get_server_name() const { return rr.get_server_name(); }  // dla typu PTR
+  uint32_t get_server_address() const { return rr.get_server_address(); }  // dla typu A
 
   friend std::istream& operator>>(std::istream& is, MdnsAnswer& answer) {
     return is >> answer.name >> answer.rr;
