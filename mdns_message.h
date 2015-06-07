@@ -108,8 +108,8 @@ public:
     }
   }
 
-  uint16_t size() {
-    uint16_t result;
+  uint16_t size() const {
+    uint16_t result = 1;              // ostatni zerowy bajt
     for (int i = 0; i < data.size(); i++) {
       result += data[i].size() + 1;   // + 1 to bajt zliczający długość
     }
@@ -142,6 +142,17 @@ public:
     return os;
   }
 
+  bool operator==(MdnsDomainName const& name) {
+    if (data.size() != name.data.size()) {
+      return false;
+    } else {
+      int i = 0;
+      while (i < data.size() && data[i] == name.data[i])
+        i++;
+      return i == data.size();
+    }
+  }
+
 private:
   std::vector<std::string> data;
 };  // class MdnsDomainName
@@ -153,6 +164,10 @@ public:
   MdnsQuestion() {}
   MdnsQuestion(std::string const& domain_name, uint16_t qtype, uint16_t qclass = INTERNET_CLASS) :
       name(domain_name), qtype(qtype), qclass(qclass) {}
+
+  MdnsDomainName get_name() const { return name; }
+  uint16_t get_qtype() const { return qtype; }
+
 
   friend std::istream& operator>>(std::istream& is, MdnsQuestion& question) {
     is >> question.name;
@@ -180,6 +195,8 @@ class MdnsQuery {
 public:
   /* konstruktor tworzy nagłówek mDNS i ustawia jego flagi na 0x0000. */
   MdnsQuery() : header() {}
+
+  const std::vector<MdnsQuestion>& get_questions() const { return questions; }
 
   void add_question(std::string const& domain_name, QTYPE type) {
     header.q_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
@@ -234,7 +251,7 @@ class MdnsResourceRecord {
 public:
   MdnsResourceRecord() {}
   /* rekord typu "PTR" - nieużywany adres */
-  MdnsResourceRecord(uint16_t type, uint16_t _class, uint32_t ttl, std::string const& server_name) :
+  MdnsResourceRecord(uint16_t type, uint16_t _class, uint32_t ttl, MdnsDomainName const& server_name) :
       type(type), _class(_class), ttl(ttl), rr_len(server_name.size()), server_name(server_name) {
         if (type != static_cast<uint16_t>(QTYPE::PTR))
           throw InvalidMdnsMessageException("Improper MdnsResourceRecord constructor used for RR type PTR");
@@ -288,9 +305,9 @@ private:
 class MdnsAnswer {
 public:
   MdnsAnswer() {}
-  MdnsAnswer(std::string const& name, uint16_t type, uint16_t _class, uint32_t ttl, std::string const& server_name) :
+  MdnsAnswer(MdnsDomainName const& name, uint16_t type, uint16_t _class, uint32_t ttl, MdnsDomainName const& server_name) :
       name(name), rr(type, _class, ttl, server_name) {}
-  MdnsAnswer(std::string const& name, uint16_t type, uint16_t _class, uint32_t ttl, uint32_t server_address) :
+  MdnsAnswer(MdnsDomainName const& name, uint16_t type, uint16_t _class, uint32_t ttl, uint32_t server_address) :
       name(name), rr(type, _class, ttl, server_address) {}
 
   friend std::istream& operator>>(std::istream& is, MdnsAnswer& answer) {
@@ -315,14 +332,18 @@ public:
     header.set_aa();
   }
 
-  bool try_read(std::istream& is) {
-    is >> header;
-    if (!header.qr()) {           // to nie jest odpowiedź
-      return false;
-    } else {
-      read_answers(is);         // odpowiedź
-      return true;
-    }
+  const std::vector<MdnsAnswer>& get_answers() const { return answers; }
+
+  /* dodanie gotowej odpowiedzi klasy Answer. */
+  void add_answer(MdnsAnswer const& answer) {
+    header.ans_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
+    answers.push_back(answer);
+  }
+
+  /* dodanie gotowej odpowiedzi klasy Answer. */
+  void add_answer(MdnsAnswer&& answer) {
+    header.ans_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
+    answers.push_back(answer);
   }
 
   /* dodanie odpowiedzi typu "PTR" */
@@ -336,6 +357,16 @@ public:
     header.q_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
     answers.push_back(MdnsAnswer(query_name, static_cast<uint16_t>(type), INTERNET_CLASS,
         ttl, server_address));
+  }
+
+  bool try_read(std::istream& is) {
+    is >> header;
+    if (!header.qr()) {           // to nie jest odpowiedź
+      return false;
+    } else {
+      read_answers(is);         // odpowiedź
+      return true;
+    }
   }
 
   friend std::istream& operator>>(std::istream& is, MdnsResponse& response) {

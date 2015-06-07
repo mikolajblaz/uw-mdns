@@ -42,13 +42,14 @@ public:
                                                   std::shared_ptr<tcp::endpoint>(),
                                                   std::shared_ptr<icmp::endpoint>(), io_service)));
 
-    tcp::resolver resolver2(io_service);
+    /*tcp::resolver resolver2(io_service);
     tcp::resolver::query query2(tcp::v4(), "mimuw.edu.pl", "80");
     std::shared_ptr<tcp::endpoint> tcp_endpoint_ptr(new tcp::endpoint(*resolver2.resolve(query2)));
     std::shared_ptr<address> ip_ptr2(new address(tcp_endpoint_ptr->address()));
     servers->insert(std::make_pair(*ip_ptr2, Server(ip_ptr2, std::shared_ptr<udp::endpoint>(),
                                                   tcp_endpoint_ptr,
                                                   std::shared_ptr<icmp::endpoint>(), io_service)));
+    */
   }
 
 

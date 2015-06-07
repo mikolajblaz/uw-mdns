@@ -35,7 +35,8 @@ const std::string MDNS_ADDRESS = "224.0.0.251";
 const std::string MDNS_LISTEN_ADDRESS = "0.0.0.0";  //TODO może jednak?? tak to usuwam
 const std::string SSH_PORT = "22";
 
-const std::string OPOZNIENIA_SERVICE = "_opoznienia._udp.local";
+const std::string OPOZNIENIA_SERVICE = "_opoznienia._udp.local.";   // TODO need it?
+const std::string SSH_SERVICE = "_ssh.local.";                      // TODO need it?
 
 
 /* ################## default values #################### */
