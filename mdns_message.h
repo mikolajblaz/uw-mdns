@@ -11,18 +11,27 @@ const int MAX_DOMAINS_DEPTH = 10;    // maksymalna dpouszczalna głębokość dr
 const int MAX_DOMAIN_LENGTH = 255;   // maksymalna długość nazwy domeny w bajtach
 
 /* Wypisuje 'val' na strumień 'os' w formacie big endian. */
-inline std::ostream& write_be(std::ostream& os, uint16_t val) {
-  unsigned char c[2];
-  c[0] = static_cast<unsigned char>(val >> 8);
-  c[1] = static_cast<unsigned char>(val);
-  return os << c[0] << c[1];
+template <typename uintX_t>
+inline std::ostream& write_be(std::ostream& os, uintX_t val) {
+  unsigned char c[sizeof(uintX_t)];
+  /* wypisujemy kolejne bajty, począwszy od najstarszego: */
+  for (int i = 0; i < sizeof(uintX_t); i++) {
+    c[i] = static_cast<unsigned char>(val >> 8 * (sizeof(uintX_t) - 1 - i));
+    os << c[i];
+  }
+  return os;
 }
 
 /* Czyta 'val' ze strumienia 'is' zapisane w formacie big endian. */
-inline std::istream& read_be(std::istream& is, uint16_t& val) {
-  unsigned char c[2];
-  is >> c[0] >> c[1];
-  val = (c[0] << 8) + c[1];
+template <typename uintX_t>
+inline std::istream& read_be(std::istream& is, uintX_t& val) {
+  unsigned char c[sizeof(uintX_t)];
+  val = 0;
+  /* wczytujemy kolejne bajty, począwszy od najstarszego: */
+  for (int i = 0; i < sizeof(uintX_t); i++) {
+    is >> c[i];
+    val += c[i] << 8 * (sizeof(uintX_t) - 1 - i);
+  }
   return is;
 }
 
@@ -213,11 +222,11 @@ public:
   friend std::istream& operator>>(std::istream& is, MdnsResourceRecord& rr) {
     read_be(is, rr.type);
     read_be(is, rr._class);
-    //read_be(is, rr.ttl);
+    read_be(is, rr.ttl);
     read_be(is, rr.rr_len);
     switch (rr.type) {
       case static_cast<uint16_t>(QTYPE::PTR): is >> rr.server_name; break;
-      //case static_cast<uint16_t>(QTYPE::A): read_be(is, server_address); break;
+      case static_cast<uint16_t>(QTYPE::A): read_be(is, rr.server_address); break;
       default: throw boost::system::system_error(boost::system::error_code()); // TODO throw!
     }
     if (rr.server_name.size() != rr.rr_len)
@@ -228,11 +237,11 @@ public:
   friend std::ostream& operator<<(std::ostream& os, MdnsResourceRecord const& rr) {
     write_be(os, rr.type);
     write_be(os, rr._class);
-    //write_be(os, rr.ttl);
+    write_be(os, rr.ttl);
     write_be(os, rr.rr_len);
     switch (rr.type) {
       case static_cast<uint16_t>(QTYPE::PTR): os << rr.server_name; break;
-      //case static_cast<uint16_t>(QTYPE::A): write_be(os, server_address); break;
+      case static_cast<uint16_t>(QTYPE::A): write_be(os, rr.server_address); break;
       default: throw boost::system::system_error(boost::system::error_code()); // TODO throw!
     }
     return os;
@@ -243,7 +252,7 @@ private:
   uint16_t _class;
   uint32_t ttl;
   uint16_t rr_len;
-  /* W zależności od rodzaju zapytania używany jest jedna z dwóch zmiennych: */
+  /* W zależności od rodzaju zapytania używana jest jedna z dwóch zmiennych: */
   MdnsDomainName server_name;   // dla rekordu typu "PTR"
   uint32_t server_address;      // dla rekordu typu "A"
 };
