@@ -87,6 +87,14 @@ public:
     }
   }
 
+  uint16_t size() {
+    uint16_t result;
+    for (int i = 0; i < data.size(); i++) {
+      result += data[i].size() + 1;   // + 1 to bajt zliczający długość
+    }
+    return result;
+  }
+
   friend std::istream& operator>>(std::istream& is, MdnsDomainName& domain_name) {
     unsigned char next_length;
     char buffer[MAX_DOMAIN_LENGTH];
@@ -182,36 +190,131 @@ private:
 };  // class MdnsQuery
 
 
-
+/* Klasa reprezentująca pojedynczy Resource Record. W zależności od jego typu
+   (PTR lub A) używana jest zmienna server_address lub server_name.
+   Nie użyto narzucającego się dziedziczenia klas ze względu na prostotę
+   tego rozwiązania. */
 class MdnsResourceRecord {
-  //TODO
-};
+public:
+  MdnsResourceRecord() {}
+  /* rekord typu "PTR" - nieużywany adres */
+  MdnsResourceRecord(uint16_t type, uint16_t _class, uint32_t ttl, std::string const& server_name) :
+      type(type), _class(_class), ttl(ttl), rr_len(server_name.size()), server_name(server_name) {
+        if (type != static_cast<uint16_t>(QTYPE::PTR))
+          ;// TODO throw !
+      }
+  /* rekord typu "A" - nieużywana nazwa */
+  MdnsResourceRecord(uint16_t type, uint16_t _class, uint32_t ttl, uint32_t server_address) :
+      type(type), _class(_class), ttl(ttl), rr_len(sizeof(server_address)), server_address(server_address) {
+        if (type != static_cast<uint16_t>(QTYPE::A))
+          ;// TODO throw !
+      }
 
-/* Klasa reprezentująca pojedynczą odpowiedź. */
-class MdnsAnswer {
-  MdnsAnswer(std::string name, uint16_t type, uint16_t _class, uint32_t ttl, uint16_t rr_len) :
-      name(name), type(type), _class(_class), ttl(ttl), rr_len(rr_len) {}
-
-  friend std::istream& operator>>(std::istream& is, MdnsAnswer& answer) {
+  friend std::istream& operator>>(std::istream& is, MdnsResourceRecord& rr) {
+    read_be(is, rr.type);
+    read_be(is, rr._class);
+    //read_be(is, rr.ttl);
+    read_be(is, rr.rr_len);
+    switch (rr.type) {
+      case static_cast<uint16_t>(QTYPE::PTR): is >> rr.server_name; break;
+      //case static_cast<uint16_t>(QTYPE::A): read_be(is, server_address); break;
+      default: throw boost::system::system_error(boost::system::error_code()); // TODO throw!
+    }
+    if (rr.server_name.size() != rr.rr_len)
+      throw boost::system::system_error(boost::system::error_code()); // TODO throw!
     return is;
   }
 
-  friend std::ostream& operator<<(std::ostream& os, MdnsAnswer const& answer) {
+  friend std::ostream& operator<<(std::ostream& os, MdnsResourceRecord const& rr) {
+    write_be(os, rr.type);
+    write_be(os, rr._class);
+    //write_be(os, rr.ttl);
+    write_be(os, rr.rr_len);
+    switch (rr.type) {
+      case static_cast<uint16_t>(QTYPE::PTR): os << rr.server_name; break;
+      //case static_cast<uint16_t>(QTYPE::A): write_be(os, server_address); break;
+      default: throw boost::system::system_error(boost::system::error_code()); // TODO throw!
+    }
     return os;
   }
 
 private:
-  MdnsDomainName name;
-  uint16_t type;
+  uint16_t type;                // typ rekordu
   uint16_t _class;
   uint32_t ttl;
   uint16_t rr_len;
-  MdnsResourceRecord rr_data;    // TODO
+  /* W zależności od rodzaju zapytania używany jest jedna z dwóch zmiennych: */
+  MdnsDomainName server_name;   // dla rekordu typu "PTR"
+  uint32_t server_address;      // dla rekordu typu "A"
+};
+
+/* Klasa reprezentująca pojedynczą odpowiedź. */
+class MdnsAnswer {
+public:
+  MdnsAnswer() {}
+  MdnsAnswer(std::string const& name, uint16_t type, uint16_t _class, uint32_t ttl, std::string const& server_name) :
+      name(name), rr(type, _class, ttl, server_name) {}
+  MdnsAnswer(std::string const& name, uint16_t type, uint16_t _class, uint32_t ttl, uint32_t server_address) :
+      name(name), rr(type, _class, ttl, server_address) {}
+
+  friend std::istream& operator>>(std::istream& is, MdnsAnswer& answer) {
+    return is >> answer.name >> answer.rr;
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, MdnsAnswer const& answer) {
+    return os << answer.name << answer.rr;
+  }
+
+private:
+  MdnsDomainName name;
+  MdnsResourceRecord rr;    // TODO może dziedziczenie?
 };  // class MdnsAnswer
 
 
 class MdnsResponse {
-  // TODO tak jak MdnsQuery
+public:
+  /* konstruktor tworzy nagłówek mDNS i ustawia jego flagi na 0x8400 (bit QR i AA). */
+  MdnsResponse() : header() {
+    header.qr();
+    header.aa();
+  }
+
+  /* dodanie odpowiedzi typu "PTR" */
+  void add_answer(std::string const& query_name, QTYPE type, std::string const& server_name, uint16_t ttl) {
+    header.ans_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
+    answers.push_back(MdnsAnswer(query_name, static_cast<uint16_t>(type), INTERNET_CLASS,
+        ttl, server_name));
+  }
+  /* dodanie odpowiedzi typu "A" */
+  void add_answer(std::string const& query_name, QTYPE type, uint16_t server_address, uint16_t ttl) {
+    header.q_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
+    answers.push_back(MdnsAnswer(query_name, static_cast<uint16_t>(type), INTERNET_CLASS,
+        ttl, server_address));
+  }
+
+
+
+  friend std::istream& operator>>(std::istream& is, MdnsResponse& response) {
+    is >> response.header;
+    for (int i = 0; i < response.header.ans_count(); i++) {
+      MdnsAnswer answer;
+      is >> answer;
+      response.answers.push_back(std::move(answer));
+    }
+    return is;
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, MdnsResponse const& response) {
+    os << response.header;
+    for (int i = 0; i < response.answers.size(); i++) {
+      os << response.answers[i];
+    }
+    return os;
+  }
+
+private:
+  MdnsHeader header;
+  std::vector<MdnsAnswer> answers;
 };  // class MdnsResponse
 
 
