@@ -12,7 +12,10 @@ using boost::asio::ip::udp;
 using boost::asio::ip::tcp;
 using boost::asio::ip::icmp;
 
+class PrintServer;
+
 class Server {
+  friend PrintServer;
 public:
   Server(std::shared_ptr<address> ip) : ip(ip) {
     std::cout << "New Server!!! ip: " << *ip << std::endl; // TODO remove

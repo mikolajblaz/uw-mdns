@@ -5,6 +5,7 @@
 #include <boost/bind.hpp>
 #include "common.h"
 #include "telnet_connection.h"
+#include "print_server.h"
 
 const std::string CLR_SCR("\033[2J\033[H");
 
@@ -27,7 +28,7 @@ public:
 private:
   /* Akceptuje nowe połączenia: */
   void start_accept() {
-    new_connection = std::make_shared<TelnetConnection>(io_service);
+    new_connection = std::make_shared<TelnetConnection>(io_service, servers_table);
 
     tcp_acceptor.async_accept(new_connection->get_socket(),
         boost::bind(&TelnetServer::handle_accept, this,
@@ -40,7 +41,6 @@ private:
       throw boost::system::system_error(error);
 
     new_connection->activate();
-    new_connection->send_update(send_buffer);
     connections.push_back(new_connection);
 
     start_accept();
@@ -52,11 +52,11 @@ private:
     if (error)
       throw boost::system::system_error(error);
 
-    build_buffer();
+    float max_delay = build_servers_table();
 
     for (auto it = connections.begin(); it != connections.end();) {
       if ((*it)->is_active()) {
-        (*it)->send_update(send_buffer);       // odświeża ekran klienta
+        (*it)->send_update(max_delay);       // odświeża ekran klienta
         ++it;
       } else {
         it = connections.erase(it);            // usuwa nieaktywne połączenie
@@ -76,8 +76,16 @@ private:
     // TODO czy to działa?
   }
 
-  void build_buffer() {
-    static int count = 0;
+  /* Buduje tablicę drukowalnych i posortowanych serwerów i zwraca najdłuższe opóźnienie. */
+  float build_servers_table() {
+    servers_table.clear();
+    servers_table.reserve(servers->size());
+    for (auto it = servers->begin(); it != servers->end(); ++it) {
+      servers_table.push_back(PrintServer((*it).second));
+    }
+    std::sort(servers_table.begin(), servers_table.end());
+
+    static long long count = 0;
     std::cout << "TELNET: Init updates!\n";
     std::string message(fill_with_spaces(CLR_SCR + "Hello world, message, count: " + std::to_string(++count)));
     std::copy(message.begin(), message.end(), send_buffer.elems);
@@ -85,6 +93,8 @@ private:
     // send_buffer[2] = std::to_string(++count) + "\n";
     // send_buffer[3] = "3 rzad";
     // send_buffer[4] = "4 rząd\n";
+
+    return servers_table.empty() ? 0 : servers_table[0].delay_sec();
   }
 
   std::string fill_with_spaces(std::string const& too_short) {
@@ -100,6 +110,8 @@ private:
   servers_ptr servers;
   std::list<std::shared_ptr<TelnetConnection> > connections;
   std::shared_ptr<TelnetConnection> new_connection;
+
+  std::vector<PrintServer> servers_table;
 };
 
 #endif  // TELNET_SERVER_H
