@@ -107,6 +107,7 @@ public:
       data.push_back(std::string(part));
     }
   }
+  MdnsDomainName(MdnsDomainName const& name) : data(name.data) {}
 
   uint16_t size() const {
     uint16_t result = 1;              // ostatni zerowy bajt
@@ -295,8 +296,6 @@ public:
       case static_cast<uint16_t>(QTYPE::A): read_be(is, rr.server_address); break;
       default: throw InvalidMdnsMessageException("Unrecognized RR type");
     }
-    if (rr.server_name.size() != rr.rr_len)
-      throw InvalidMdnsMessageException("Invalid server name length");
     return is;
   }
 
@@ -366,25 +365,25 @@ public:
 
   /* dodanie gotowej odpowiedzi klasy Answer. */
   void add_answer(MdnsAnswer const& answer) {
-    header.ans_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
+    header.ans_count(header.ans_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
     answers.push_back(answer);
   }
 
   /* dodanie gotowej odpowiedzi klasy Answer. */
   void add_answer(MdnsAnswer&& answer) {
-    header.ans_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
+    header.ans_count(header.ans_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
     answers.push_back(answer);
   }
 
   /* dodanie odpowiedzi typu "PTR" */
   void add_answer(std::string const& query_name, QTYPE type, std::string const& server_name, uint16_t ttl) {
-    header.ans_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
+    header.ans_count(header.ans_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
     answers.push_back(MdnsAnswer(query_name, static_cast<uint16_t>(type), INTERNET_CLASS,
         ttl, server_name));
   }
   /* dodanie odpowiedzi typu "A" */
   void add_answer(std::string const& query_name, QTYPE type, uint16_t server_address, uint16_t ttl) {
-    header.q_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
+    header.ans_count(header.ans_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
     answers.push_back(MdnsAnswer(query_name, static_cast<uint16_t>(type), INTERNET_CLASS,
         ttl, server_address));
   }

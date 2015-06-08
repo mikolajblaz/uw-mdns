@@ -9,6 +9,7 @@
 
 using boost::asio::ip::udp;
 using boost::asio::ip::address;
+using boost::asio::ip::address_v4;
 
 class MdnsClient {
 public:
@@ -43,9 +44,8 @@ public:
     udp::resolver::query query(udp::v4(), "localhost", "10001");
     std::shared_ptr<udp::endpoint> udp_endpoint_ptr(new udp::endpoint(*resolver.resolve(query)));
     std::shared_ptr<address> ip_ptr(new address(udp_endpoint_ptr->address()));
-    servers->insert(std::make_pair(*ip_ptr, Server(ip_ptr, udp_endpoint_ptr,
-                                                  std::shared_ptr<tcp::endpoint>(),
-                                                  std::shared_ptr<icmp::endpoint>(), io_service)));
+    auto it = servers->insert(std::make_pair(*ip_ptr, Server(ip_ptr)));
+    it.first->second.enable_udp(1000);
 
     /*tcp::resolver resolver2(io_service);
     tcp::resolver::query query2(tcp::v4(), "mimuw.edu.pl", "80");
@@ -147,6 +147,8 @@ private:
       std::cout << "mDNS CLIENT: mDNS CLIENT: Ignoring packet... reason: " << e.what() << std::endl;
     }
 
+    recv_stream_buffer.consume(recv_stream_buffer.size());
+
     start_mdns_receiving();
   }
 
@@ -156,22 +158,28 @@ private:
     uint16_t type = answer.get_type();
     MdnsDomainName name(answer.get_name());
     if (type == static_cast<uint16_t>(QTYPE::PTR)) {  // w odpowiedzi jest nazwa serwera
-
+    
       if (name == opoznienia_service) {     // serwer udostępnia _opoznienia._udp.local
         auto iter = known_udp_server_names.insert(answer.get_server_name());
-        start_mdns_a_query(*iter.first);    // zapytanie typu A o adres serwera
+        start_mdns_a_query(*iter.first);    // odpowiadamy zapytaniem typu A o adres serwera
       } else if (name == ssh_service) {     // serwer udostępnia _ssh.local
         auto iter = known_tcp_server_names.insert(answer.get_server_name());
-        start_mdns_a_query(*iter.first);    // zapytanie typu A o adres serwera
+        start_mdns_a_query(*iter.first);    // odpowiadamy zapytaniem typu A o adres serwera
       } // else nieznana usługa 
 
     } else if (type == static_cast<uint16_t>(QTYPE::A)) {
-      /* przyszła informacja o serwerze rozgłaszającym usługę _opoznienia._udp i/lub _ssh: */
-      if (known_udp_server_names.find(name) != known_udp_server_names.end()) {  // to jest serwer udp
-        // TODO
-      }
-      if (known_tcp_server_names.find(name) != known_tcp_server_names.end()) {  // to jest serwer tcp
-        // TODO
+      /* sprawdzamy czy serwer udostępnia znane nam usługi: */
+      bool is_udp_server = known_udp_server_names.find(name) != known_udp_server_names.end();
+      bool is_tcp_server = known_tcp_server_names.find(name) != known_tcp_server_names.end();
+
+      if (is_udp_server || is_tcp_server) {
+        std::shared_ptr<address> server_address(new address(address_v4(answer.get_server_address())));
+        /* jeśli jeszcze nie ma go w mapie, dodajemy go: */
+        auto it = servers->insert(std::make_pair(*server_address, Server(server_address)));
+        if (is_udp_server)
+          it.first->second.enable_udp(answer.get_ttl());
+        if (is_tcp_server)
+          it.first->second.enable_tcp(io_service, answer.get_ttl());
       }
     } // else nieznany typ odpowiedzi
   }
