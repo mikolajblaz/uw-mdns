@@ -23,6 +23,7 @@ typedef uint64_t time_type;
 
 /* ################## constants #################### */
 
+const long SEC_TO_USEC = 1000000L; // zamiana sekund na mikrosekundy
 const int PROTOCOL_COUNT = 3;
 const int BUFFER_SIZE = 1000;     // TODO ile?
 
@@ -41,7 +42,7 @@ const std::string SSH_SERVICE = "_ssh.local.";                      // TODO need
 
 /* ################## default values #################### */
 
-const int TTL_DEFAULT = 20;
+const int TTL_DEFAULT = 20;   // czas w mikrosekundach
 
 const int UDP_PORT_DEFAULT = 3382;
 const int UI_PORT_DEFAULT = 3673;

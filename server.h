@@ -22,13 +22,13 @@ public:
   void enable_udp(uint32_t ttl) {
     udp_endpoint  = std::make_shared<udp::endpoint>(*ip, MDNS_PORT);
     icmp_endpoint = std::make_shared<icmp::endpoint>(*ip, MDNS_PORT);
-    udp_ttl = get_time_usec() + ttl;
+    udp_ttl = get_time_usec() + ttl * SEC_TO_USEC;
   }
   /* Aktywuje pomiary przez TCP. */
   void enable_tcp(boost::asio::io_service& io_service, uint32_t ttl) {
     tcp_endpoint = std::make_shared<tcp::endpoint>(*ip, SSH_PORT);
     tcp_socket   = std::make_shared<tcp::socket>(io_service);
-    tcp_ttl = get_time_usec() + ttl;
+    tcp_ttl = get_time_usec() + ttl * SEC_TO_USEC;
   }
   /* Dezaktywuje pomiary przez UDP i ICMP. */
   void disable_udp() {

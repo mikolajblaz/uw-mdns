@@ -21,7 +21,7 @@ int main(int argc, char const *argv[]) {
   	MdnsServer mdns_server(io_service);
     MdnsClient mdns_client(io_service, servers);
     //MeasurementServer measurement_server(io_service);
-    //MeasurementClient measurement_client(io_service, servers);
+    MeasurementClient measurement_client(io_service, servers);
 
     io_service.run();
 
