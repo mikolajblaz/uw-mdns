@@ -94,7 +94,7 @@ private:
   }
 
   /* Uniwersalny handler po wysłaniu dla wszystkich protokołów. */
-  void handle_send(const boost::system::error_code& error,
+  void handle_send(boost::system::error_code const& error,
       std::size_t /*bytes_transferred*/) {
     if (error)
       throw boost::system::system_error(error);
@@ -109,7 +109,7 @@ public:     // TODO
     finish_waiting_query(extracted_start_time, end_time, PROTOCOL::UDP);
   }
 private:
-  void receive_tcp_query(const boost::system::error_code& error, long id) {
+  void receive_tcp_query(boost::system::error_code const& error, long id) {
     if (error)
       throw boost::system::system_error(error);
     std::cout << *ip << ": TCP RECEIVE query! ID[" << id << "]\n";

@@ -61,7 +61,7 @@ private:
    * jest ignorowane, zaś niepoprawne zapytanie typu 'Query' powoduje rzucenie
    * (i złapanie) wyjątku.
    * Następnie serwer odpowiada pakietem mDNS typu 'Response'. */
-  void handle_receive(const boost::system::error_code& error,
+  void handle_receive(boost::system::error_code const& error,
       std::size_t bytes_transferred) {
     if (error)
       throw boost::system::system_error(error);
@@ -96,7 +96,7 @@ private:
     start_receive();
   }
 
-  void handle_send(const boost::system::error_code& error,
+  void handle_send(boost::system::error_code const& error,
       std::size_t /*bytes_transferred*/) {
     if (error)
       throw boost::system::system_error(error);

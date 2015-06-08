@@ -26,6 +26,8 @@ typedef uint64_t time_type;
 const long SEC_TO_USEC = 1000000L; // zamiana sekund na mikrosekundy
 const int PROTOCOL_COUNT = 3;
 const int BUFFER_SIZE = 1000;     // TODO ile?
+const int UI_SCREEN_WIDTH = 80;
+const int UI_SCREEN_HEIGHT = 24;
 
 const int AVERAGED_MEASUREMENTS = 10;
 //const int MAX_DELAY

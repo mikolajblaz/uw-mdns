@@ -11,6 +11,7 @@
 #include "mdns_client.h"
 #include "measurement_server.h"
 #include "measurement_client.h"
+#include "telnet_server.h"
 
 int main(int argc, char const *argv[]) {
   servers_ptr servers(new servers_map);
@@ -18,10 +19,11 @@ int main(int argc, char const *argv[]) {
   //boost::asio::io_service io_service_servers;  // TODO
 
   //try {
-  	MdnsServer mdns_server(io_service);
-    MdnsClient mdns_client(io_service, servers);
+  	//MdnsServer mdns_server(io_service);
+    //MdnsClient mdns_client(io_service, servers);
     //MeasurementServer measurement_server(io_service);
-    MeasurementClient measurement_client(io_service, servers);
+    //MeasurementClient measurement_client(io_service, servers);
+    TelnetServer telnet_server(io_service, servers);
 
     io_service.run();
 

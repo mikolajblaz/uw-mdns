@@ -61,7 +61,7 @@ public:
 private:
   /* Zapytanie mdns typu PTR o usługę _opozenienia._udp.local wysyłane
    * w zadanych odstępach czasowych. */
-  void start_mdns_ptr_query(const boost::system::error_code& error) {
+  void start_mdns_ptr_query(boost::system::error_code const& error) {
     if (error)
       throw boost::system::system_error(error);
 
@@ -98,7 +98,7 @@ private:
             boost::asio::placeholders::bytes_transferred));
   }
 
-  void handle_mdns_send(const boost::system::error_code& error,
+  void handle_mdns_send(boost::system::error_code const& error,
       std::size_t /*bytes_transferred*/) {
     if (error)
       throw boost::system::system_error(error);
@@ -127,7 +127,7 @@ private:
    * A - odświeża TTL serwera lub tworzy instancję klasy Server reprezentującą
    *     go, jeśli jeszcze nie istnieje (lub dodaje nowy rodzaj protokołu).
    */
-  void handle_mdns_receive(const boost::system::error_code& error,
+  void handle_mdns_receive(boost::system::error_code const& error,
       std::size_t bytes_transferred) {
     if (error)
       throw boost::system::system_error(error);

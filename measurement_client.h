@@ -27,7 +27,7 @@ public:
 
 private:
   /* Inicjuje wysłanie pakietów rozpoczynających pomiar do wszystkich serwerów. */
-  void init_measurements(const boost::system::error_code& error) {
+  void init_measurements(boost::system::error_code const& error) {
     if (error)
       throw boost::system::system_error(error);
 
@@ -48,7 +48,7 @@ private:
           boost::asio::placeholders::bytes_transferred));
   }
 
-  void handle_udp_receive(const boost::system::error_code& error,
+  void handle_udp_receive(boost::system::error_code const& error,
       std::size_t bytes_transferred) {
     if (error || bytes_transferred < sizeof(uint64_t))
       throw boost::system::system_error(error);
@@ -71,7 +71,7 @@ private:
     // TODO
   }
 
-  void handle_icmp_receive(const boost::system::error_code& error,
+  void handle_icmp_receive(boost::system::error_code const& error,
       std::size_t /*bytes_transferred*/) {
     if (error)
       throw boost::system::system_error(error);
