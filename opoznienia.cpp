@@ -2,7 +2,6 @@
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
 #include <boost/system/system_error.hpp>
-#include <boost/exception/diagnostic_information.hpp>     // TODO
 
 #include <map>
 #include "common.h"
@@ -16,6 +15,7 @@
 int main(int argc, char const *argv[]) {
   servers_ptr servers(new servers_map);
   boost::asio::io_service io_service;
+  //boost::asio::io_service io_service_servers;  // TODO
 
   //try {
   	MdnsServer mdns_server(io_service);
