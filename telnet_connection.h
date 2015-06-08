@@ -59,6 +59,8 @@ public:
         send_buffer.push_back(servers_table[i].to_string_sec(max_delay));
       }
 
+      
+
       boost::asio::async_write(socket, boost::asio::buffer(send_buffer),
           boost::bind(&TelnetConnection::handle_send, this,
               boost::asio::placeholders::error,
