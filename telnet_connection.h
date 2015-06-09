@@ -8,9 +8,12 @@
 #include "print_server.h"
 
 const int MAX_OPTIONS = 6;
-const std::string IAC_WILL_SGA ("\377\373\003");
-const std::string IAC_WILL_ECHO("\377\373\001");
-const std::string CLR_SCR("\033[2J\033[H");
+const std::string IAC_WILL_SGA  = "\377\373\003";
+const std::string IAC_WILL_ECHO = "\377\373\001";
+const std::string CLR_SCR       = "\033[2J\033[H";
+
+const unsigned char KEY_UP   = 'q';
+const unsigned char KEY_DOWN = 'a';
 
 using boost::asio::ip::tcp;
 
@@ -30,6 +33,7 @@ public:
   void activate() {
     active = true;
     negotiate_options(IAC_WILL_SGA + IAC_WILL_ECHO);
+    send_update();
     start_receive();
   }
   void deactivate() {
@@ -83,12 +87,23 @@ private:
         handle_keypress(*it);
       }
 
+      send_update();
       start_receive();
     }
   }
 
   void handle_keypress(unsigned char key) {
-    if (key)
+    if (key == KEY_UP) {
+      if (table_position > 0) {
+        std::cout << "MOVING UPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP\n";
+        table_position--;
+      }
+    } else if (key == KEY_DOWN) {
+      if (table_position < servers_table.size() - 1) {
+        std::cout << "MOVING DOWNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\n";
+        table_position++;
+      }
+    }
   }
 
   /* Funkcja negocjująca odpowiednie opcje z klientem telnet. */
