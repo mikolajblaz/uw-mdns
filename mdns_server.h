@@ -50,6 +50,8 @@ private:
 
   /* zlecenie asynchronicznego odbioru pakietów multicastowych */
   void start_receive() {
+    recv_stream_buffer.consume(recv_stream_buffer.size());  // wyczyść bufor
+
     recv_socket.async_receive_from(
         recv_stream_buffer.prepare(BUFFER_SIZE), remote_endpoint,
         boost::bind(&MdnsServer::handle_receive, this,
@@ -90,8 +92,6 @@ private:
     } catch (InvalidMdnsMessageException e) {
       std::cout << "mDNS SERVER: Ignoring packet... reason: " << e.what() << std::endl;
     }
-    
-    recv_stream_buffer.consume(recv_stream_buffer.size());
 
     start_receive();
   }

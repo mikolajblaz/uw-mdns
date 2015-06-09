@@ -7,8 +7,6 @@
 #include "telnet_connection.h"
 #include "print_server.h"
 
-const std::string CLR_SCR("\033[2J\033[H");
-
 using boost::asio::ip::tcp;
 
 class TelnetServer {
