@@ -7,16 +7,9 @@
 #include "get_time_usec.h"
 #include "print_server.h"
 
-const int MAX_OPTIONS = 3;
-
+const int MAX_OPTIONS = 6;
 const std::string IAC_WILL_SGA ("\377\373\003");
-const std::string IAC_DO_SGA   ("\377\375\003");
 const std::string IAC_WILL_ECHO("\377\373\001");
-const std::string IAC_DO_ECHO  ("\377\375\001");
-
-enum class STATE {
-  INIT, WILL_SGA, WILL_ECHO, READY
-};
 
 using boost::asio::ip::tcp;
 
@@ -25,7 +18,6 @@ public:
   TelnetConnection(boost::asio::io_service& io_service, std::vector<PrintServer> const& servers_table) :
     socket(io_service),
     active(false),
-    state(STATE::INIT),
     servers_table(servers_table) {}
 
   tcp::socket& get_socket() { return socket; }
@@ -52,20 +44,16 @@ public:
   /* Odświeża ekran klienta */
   void send_update(float max_delay) {
     last_max_delay = max_delay;
-    if (state == STATE::READY) {
-      send_buffer.clear();
-      send_buffer.reserve(UI_SCREEN_HEIGHT);
-      for (int i = table_position; i < servers_table.size() && i < table_position + UI_SCREEN_HEIGHT; ++i) {
-        send_buffer.push_back(servers_table[i].to_string_sec(max_delay));
-      }
-
-      
-
-      boost::asio::async_write(socket, boost::asio::buffer(send_buffer),
-          boost::bind(&TelnetConnection::handle_send, this,
-              boost::asio::placeholders::error,
-              boost::asio::placeholders::bytes_transferred));
+    send_buffer.clear();
+    send_buffer.reserve(UI_SCREEN_HEIGHT);
+    for (int i = table_position; i < servers_table.size() && i < table_position + UI_SCREEN_HEIGHT; ++i) {
+      send_buffer.push_back(servers_table[i].to_string_sec(max_delay));
     }
+
+    boost::asio::async_write(socket, boost::asio::buffer(send_buffer),
+        boost::bind(&TelnetConnection::handle_send, this,
+            boost::asio::placeholders::error,
+            boost::asio::placeholders::bytes_transferred));
   }
 
 private:
@@ -90,33 +78,16 @@ private:
     }
   }
 
-  /* Funkcja, która w kolejnych wywołaniach negocjuje odpowiednie opcje z klientem telnet. */
+  /* Funkcja negocjująca odpowiednie opcje z klientem telnet. */
   void negotiate_options() {
-    switch (state) {
-      case STATE::INIT:
-        state = STATE::WILL_ECHO;   // TODO omijanie ECHO?
-        send_options(IAC_WILL_SGA);
-        recv_options(IAC_DO_SGA);
-        break;
-      case STATE::WILL_SGA:
-        state = STATE::WILL_ECHO;
-        send_options(IAC_WILL_ECHO);
-        recv_options(IAC_DO_ECHO);
-        break;
-      case STATE::WILL_ECHO:
-        state = STATE::READY;
-        start_receive();
-        break;
-      case STATE::READY:
-        break;
-    }
+    send_options(IAC_WILL_SGA + IAC_WILL_ECHO);
   }
   /* Wysłanie opcji 'options' do klienta telnetu. */
   void send_options(std::string const& options) {
     boost::system::error_code error;
     socket.send(boost::asio::buffer(options), 0, error);
     if (error)
-      deactivate();
+      deactivate();     // TODO może bez tego?
   }
   /* Oczekiwanie na potwierdzenie opcji */
   void recv_options(std::string const& required_options) {
@@ -141,7 +112,6 @@ private:
   boost::array<char, BUFFER_SIZE> recv_buffer;
   tcp::socket socket;
   bool active;                // czy połączenie jest aktywne
-  STATE state;
 
   const std::vector<PrintServer>& servers_table;
   std::vector<std::string> send_buffer;

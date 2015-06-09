@@ -42,6 +42,7 @@ public:
   /* Dezaktywuje pomiary przez TCP. */
   void disable_tcp() {
     tcp_endpoint = std::shared_ptr<tcp::endpoint>();
+    // TODO zamknij sockety
     tcp_ttl = 0;
   }
 
