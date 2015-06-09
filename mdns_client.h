@@ -5,6 +5,7 @@
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include "common.h"
+#include "server.h"
 #include "mdns_message.h"
 
 using boost::asio::ip::udp;
@@ -13,21 +14,24 @@ using boost::asio::ip::address_v4;
 
 class MdnsClient {
 public:
-  MdnsClient(boost::asio::io_service& io_service, servers_ptr const& servers) :
-      timer(io_service, boost::posix_time::seconds(0)),
-      io_service(io_service),
-      recv_buffer(),
-      send_buffer(),
-      recv_stream(&recv_buffer),
-      send_stream(&send_buffer),
-      multicast_endpoint(address::from_string(MDNS_ADDRESS), MDNS_PORT),
-      send_socket(io_service, multicast_endpoint.protocol()),
-      recv_socket(io_service),
-      servers(servers),
-      known_udp_server_names(),
-      known_tcp_server_names(),
-      opoznienia_service(OPOZNIENIA_SERVICE),
-      ssh_service(SSH_SERVICE) {
+  MdnsClient(boost::asio::io_service& io_service, servers_ptr servers,
+      std::shared_ptr<udp::socket> udp_socket, std::shared_ptr<icmp::socket> icmp_socket) :
+          timer(io_service, boost::posix_time::seconds(0)),
+          io_service(io_service),
+          udp_socket(udp_socket),
+          icmp_socket(icmp_socket),
+          recv_buffer(),
+          send_buffer(),
+          recv_stream(&recv_buffer),
+          send_stream(&send_buffer),
+          multicast_endpoint(address::from_string(MDNS_ADDRESS), MDNS_PORT),
+          send_socket(io_service, multicast_endpoint.protocol()),
+          recv_socket(io_service),
+          servers(servers),
+          known_udp_server_names(),
+          known_tcp_server_names(),
+          opoznienia_service(OPOZNIENIA_SERVICE),
+          ssh_service(SSH_SERVICE) {
     /* dołączamy do grupy adresu 224.0.0.251, odbieramy na porcie 5353: */
     recv_socket.open(udp::v4());
     recv_socket.set_option(udp::socket::reuse_address(true));
@@ -48,7 +52,7 @@ public:
     udp::resolver::query query(udp::v4(), "localhost", "10001");
     std::shared_ptr<udp::endpoint> udp_endpoint_ptr(new udp::endpoint(*resolver.resolve(query)));
     std::shared_ptr<address> ip_ptr(new address(udp_endpoint_ptr->address()));
-    auto it = servers->insert(std::make_pair(*ip_ptr, Server(ip_ptr)));
+    auto it = servers->insert(std::make_pair(*ip_ptr, Server(ip_ptr, io_service, udp_socket, icmp_socket)));
     it.first->second.enable_udp(1000);
 
     /*tcp::resolver resolver2(io_service);
@@ -153,7 +157,7 @@ private:
   }
 
 
-  /* Obsługuje jedną odpowiedź otrzymaną w pakiecie mDNS. */
+  /* Obsługuje jedną odpowiedź otrzymaną w pakiecie mDNS aktualizując bazę serwerów. */
   void handle_answer(MdnsAnswer const& answer) {
     uint16_t type = answer.get_type();
     MdnsDomainName name(answer.get_name());
@@ -175,13 +179,19 @@ private:
       if (is_udp_server || is_tcp_server) {
         std::shared_ptr<address> server_address(new address(address_v4(answer.get_server_address())));
         /* jeśli jeszcze nie ma go w mapie, dodajemy go: */
-        auto it = servers->insert(std::make_pair(*server_address, Server(server_address)));
+        auto iter = servers->find(*server_address);
+        if (iter == servers->end()) {
+          auto tmp_it = servers->insert(std::make_pair(*server_address,
+              Server(server_address, io_service, udp_socket, icmp_socket)));
+          iter = tmp_it.first;
+        }
+
         if (is_udp_server)
-          it.first->second.enable_udp(answer.get_ttl());
+          iter->second.enable_udp(answer.get_ttl());
         if (is_tcp_server)
-          it.first->second.enable_tcp(io_service, answer.get_ttl());
+          iter->second.enable_tcp(answer.get_ttl());
       }
-    } // else nieznany typ odpowiedzi
+    } // else nieznany typ odpowiedzi - ignorujemy
   }
 
 
@@ -197,6 +207,9 @@ private:
 
   boost::asio::deadline_timer timer;
   boost::asio::io_service& io_service;
+
+  std::shared_ptr<udp::socket>  udp_socket;  // gniazdo używane do wszstkich pakietów UDP
+  std::shared_ptr<icmp::socket> icmp_socket; // gniazdo używane do wszstkich pakietów ICMP
 
   boost::asio::streambuf recv_buffer; // bufor do odbierania
   boost::asio::streambuf send_buffer; // bufor do wysyłania

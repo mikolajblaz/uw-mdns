@@ -5,13 +5,14 @@
 #include <boost/bind.hpp>
 #include "common.h"
 #include "telnet_connection.h"
+#include "server.h"
 #include "print_server.h"
 
 using boost::asio::ip::tcp;
 
 class TelnetServer {
 public:
-  TelnetServer(boost::asio::io_service& io_service, servers_ptr const& servers) :
+  TelnetServer(boost::asio::io_service& io_service, servers_ptr servers) :
       io_service(io_service),
       timer(io_service, boost::posix_time::seconds(0)),
       tcp_acceptor(io_service, tcp::endpoint(tcp::v4(), UI_PORT_DEFAULT)),

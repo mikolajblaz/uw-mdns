@@ -5,18 +5,25 @@
 #include <boost/bind.hpp>
 #include "common.h"
 #include "get_time_usec.h"    // TODO włączyć do common
+#include "mdns_client.h"
+#include "telnet_server.h"
 #include "server.h"
+#include "mdns_message.h"
 
 using boost::asio::ip::udp;
 using boost::asio::ip::tcp;
 using boost::asio::ip::icmp;
 
+/* Klasa do pomiarów opóźnień. Zawiera klienta mDNS i serwer telnetu. */
 class MeasurementClient {
 public:
-  MeasurementClient(boost::asio::io_service& io_service, servers_ptr const& servers) :    // TODO const& czy value?
+  MeasurementClient(boost::asio::io_service& io_service) :
       timer(io_service, boost::posix_time::seconds(0)),
-      udp_socket(io_service, udp::v4()), icmp_socket(io_service),
-      servers(servers) {
+      udp_socket(new udp::socket(io_service, udp::v4())),
+      icmp_socket(new icmp::socket(io_service)),
+      servers(new servers_map),
+      mdns_client(io_service, servers, udp_socket, icmp_socket),
+      telnet_server(io_service, servers) {
 
     start_udp_receiving();
     start_icmp_receiving();
@@ -41,7 +48,7 @@ private:
 
 
   void start_udp_receiving() {
-    udp_socket.async_receive_from(
+    udp_socket->async_receive_from(
         boost::asio::buffer(recv_buffer), remote_udp_endpoint,
         boost::bind(&MeasurementClient::handle_udp_receive, this,
           boost::asio::placeholders::error,
@@ -92,11 +99,15 @@ private:
   boost::asio::deadline_timer timer;
   boost::array<char, BUFFER_SIZE> recv_buffer;
 
-  udp::socket  udp_socket;
-  icmp::socket icmp_socket;
+  std::shared_ptr<udp::socket>  udp_socket;  // gniazdo używane do wszstkich pakietów UDP
+  std::shared_ptr<icmp::socket> icmp_socket; // gniazdo używane do wszstkich pakietów ICMP
   udp::endpoint remote_udp_endpoint;
 
   servers_ptr servers;
+
+
+  MdnsClient mdns_client;
+  TelnetServer telnet_server;
 };
 
 #endif  // MEASUREMENT_CLIENT_H

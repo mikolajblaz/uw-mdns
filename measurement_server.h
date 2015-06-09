@@ -5,6 +5,7 @@
 #include "common.h"
 
 class MeasurementServer {
+  MeasurementServer(boost::asio::io_service& io_service) {}
   // taki jak czekamnaudp.c
   //TODO
 
