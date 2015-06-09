@@ -50,11 +50,11 @@ private:
     if (error)
       throw boost::system::system_error(error);
 
-    float max_delay = build_servers_table();
+    build_servers_table();
 
     for (auto it = connections.begin(); it != connections.end();) {
       if ((*it)->is_active()) {
-        (*it)->send_update(max_delay);       // odświeża ekran klienta
+        (*it)->send_update();                  // odświeża ekran klienta
         ++it;
       } else {
         it = connections.erase(it);            // usuwa nieaktywne połączenie
@@ -74,20 +74,17 @@ private:
     // TODO czy to działa?
   }
 
-  /* Buduje tablicę drukowalnych i posortowanych serwerów i zwraca najdłuższe opóźnienie. */
-  float build_servers_table() {
+  /* Buduje tablicę drukowalnych i posortowanych serwerów. */
+  void build_servers_table() {
+    const float max_delay = MAX_DELAY_TIME;     // opóźnienie w sekundach
+
     servers_table.clear();
     servers_table.reserve(servers->size());
     for (auto it = servers->begin(); it != servers->end(); ++it) {
-      servers_table.push_back(PrintServer((*it).second));
+      servers_table.push_back(PrintServer((*it).second, max_delay));
     }
+    /* Sortujemy malejąco po czasach: */
     std::sort(servers_table.begin(), servers_table.end());
-
-    return servers_table.empty() ? 0 : servers_table[0].delay_sec();
-  }
-
-  std::string fill_with_spaces(std::string const& too_short) {
-    return too_short + std::string(UI_SCREEN_WIDTH - too_short.size(), '.');
   }
 
 

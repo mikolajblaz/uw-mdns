@@ -50,13 +50,13 @@ public:
   }
 
   /* Odświeża ekran klienta */
-  void send_update(float max_delay) {
-    last_max_delay = max_delay;
+  void send_update() {
     send_buffer.consume(send_buffer.size());  // wyczyść bufor
     
-    send_stream << CLR_SCR;                   // czysczenie ekranu klienta
+    /* Wysyłamy znaki CLR_SCR i kolejno 24 wiersze tabelki. */
+    send_stream << CLR_SCR;
     for (int i = table_position; i < servers_table.size() && i < table_position + UI_SCREEN_HEIGHT; ++i) {
-      send_stream << servers_table[i].to_string_sec(max_delay);
+      send_stream << servers_table[i];
     }
 
     boost::asio::async_write(socket, send_buffer.data(),
@@ -124,7 +124,6 @@ private:
 
   const std::vector<PrintServer>& servers_table;  // referencja do tabelki
   int table_position;         // aktualna pozycja wyświetlanej tabelki
-  float last_max_delay;       // ostatnio zarejestrowane największe opóźnienie
 };
 
 #endif  // TELNET_CONNECTION_H
