@@ -20,8 +20,8 @@ public:
       multicast_endpoint(address::from_string(MDNS_ADDRESS), MDNS_PORT),
       send_socket(io_service, multicast_endpoint.protocol()),
       recv_socket(io_service),
-      local_server_address(get_local_server_address()),
-      local_server_name(),
+      local_opoznienia_name(get_local_opoznienia_name()),
+      local_ssh_name(get_local_ssh_name()),
       opoznienia_service(OPOZNIENIA_SERVICE),
       ssh_service(SSH_SERVICE) {
     /* dołączamy do grupy adresu 224.0.0.251, odbieramy na porcie 5353: */
@@ -36,15 +36,18 @@ public:
     //send_socket.set_option(option);     // TODO turn on?
 
     // TODO connect
-    local_server_name = get_local_server_name();
+    local_server_address = get_local_server_address();
 
     start_receive();
   }
 
 private:
-  /* Zwraca nową nazwę serwera w sieci lokalnej. */
-  std::string get_local_server_name() {
+  /* Zwraca nową nazwę serwera opóźnień w sieci lokalnej. */
+  std::string get_local_opoznienia_name() {
     return boost::asio::ip::host_name() + '.' + OPOZNIENIA_SERVICE;
+  }
+  std::string get_local_ssh_name() {
+    return boost::asio::ip::host_name() + '.' + SSH_SERVICE;
   }
   /* Zwraca adres IP serwera w sieci lokalnej. */
   uint32_t get_local_server_address() {
@@ -88,6 +91,7 @@ private:
     start_receive();
   }
 
+  /* Tworzy i wysyła odpowiedź na zapytanie 'query' */
   void send_response_to(MdnsQuery const& query) {
     MdnsResponse response;
     std::vector<MdnsQuestion> questions = query.get_questions();
@@ -95,7 +99,7 @@ private:
       try {
         response.add_answer(answer_to(questions[i]));
       }
-      catch (InvalidMdnsMessageException e) {}    // ignore unknown questions
+      catch (InvalidMdnsMessageException e) {}    // ignorujemy nieznane pytania
     }
 
     /* jeśli znamy jakąś odpowiedź, odpowiadamy: */
@@ -110,18 +114,24 @@ private:
     }
   }
 
+  /* Zwraca odpowiedź na pojedyncze pytanie mDNS. */
   MdnsAnswer answer_to(MdnsQuestion const& question) {
     MdnsDomainName name = question.get_name();
     uint16_t type = question.get_qtype();
     uint16_t _class = INTERNET_CLASS;
     uint32_t ttl = TTL_DEFAULT;
-    if (type == static_cast<uint16_t>(QTYPE::PTR) && (name == opoznienia_service || name == ssh_service)) {
-      return MdnsAnswer(name, type, _class, ttl, local_server_name);
-    } else if (type == static_cast<uint16_t>(QTYPE::A) && name == local_server_name) {
-      return MdnsAnswer(name, type, _class, ttl, local_server_address);
-    } else {
-      throw InvalidMdnsMessageException("Unknown question type");
+    if (type == static_cast<uint16_t>(QTYPE::PTR)) {
+      if (name == opoznienia_service)
+        return MdnsAnswer(name, type, _class, ttl, local_opoznienia_name);
+      if (name == ssh_service)
+        return MdnsAnswer(name, type, _class, ttl, local_ssh_name);
+
+    } else if (type == static_cast<uint16_t>(QTYPE::A)) {
+      if (name == local_opoznienia_name || name == local_ssh_name)
+        return MdnsAnswer(name, type, _class, ttl, local_server_address);
     }
+
+    throw InvalidMdnsMessageException("Unknown question type");
   }
 
   void handle_send(boost::system::error_code const& error,
@@ -143,8 +153,9 @@ private:
   udp::socket send_socket;            // wysyłanie pakietów na multicast
   udp::socket recv_socket;            // odbieranie z multicastowych
 
-  uint32_t local_server_address;      // rozgłaszane IP serwera
-  MdnsDomainName local_server_name;   // rozgłaszana nazwa serwera
+  uint32_t local_server_address;              // rozgłaszane IP serwera
+  const MdnsDomainName local_opoznienia_name; // rozgłaszana nazwa serwera usługi opoznienia
+  const MdnsDomainName local_ssh_name;        // rozgłaszana nazwa serwera usługi ssh
   const MdnsDomainName opoznienia_service;
   const MdnsDomainName ssh_service;
 };
