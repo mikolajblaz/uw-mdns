@@ -13,6 +13,10 @@ using boost::asio::ip::address;
 class MdnsServer {
 public:
   MdnsServer(boost::asio::io_service& io_service) :
+      recv_buffer(),
+      send_buffer(),
+      recv_stream(&recv_buffer),
+      send_stream(&send_buffer),
       multicast_endpoint(address::from_string(MDNS_ADDRESS), MDNS_PORT),
       send_socket(io_service, multicast_endpoint.protocol()),
       recv_socket(io_service),
@@ -50,10 +54,10 @@ private:
 
   /* zlecenie asynchronicznego odbioru pakietów multicastowych */
   void start_receive() {
-    recv_stream_buffer.consume(recv_stream_buffer.size());  // wyczyść bufor
+    recv_buffer.consume(recv_buffer.size());  // wyczyść bufor
 
     recv_socket.async_receive_from(
-        recv_stream_buffer.prepare(BUFFER_SIZE), remote_endpoint,
+        recv_buffer.prepare(BUFFER_SIZE), remote_endpoint,
         boost::bind(&MdnsServer::handle_receive, this,
           boost::asio::placeholders::error,
           boost::asio::placeholders::bytes_transferred));
@@ -68,26 +72,14 @@ private:
     if (error)
       throw boost::system::system_error(error);
 
-    recv_stream_buffer.commit(bytes_transferred);   // przygotowanie bufora
-    std::istream is(&recv_stream_buffer);
     MdnsQuery query;
+    recv_buffer.commit(bytes_transferred);   // przygotowanie bufora
 
     try {
-      if (query.try_read(is)) {          // ignorujemy pakiety mDNS typu 'Response'
+      if (query.try_read(recv_stream)) {          // ignorujemy pakiety mDNS typu 'Response'
         std::cout << "mDNS SERVER: datagram received: [" << query << "] from: " << remote_endpoint << "\n";
 
-        /* jeśli znamy jakąś odpowiedź: */
-        MdnsResponse response = respond_to(query);
-        if (!response.get_answers().empty()) {
-          boost::asio::streambuf request_buffer;
-          std::ostream os(&request_buffer);
-          os << response;
-
-          send_socket.async_send_to(request_buffer.data(), multicast_endpoint,
-              boost::bind(&MdnsServer::handle_send, this,
-                boost::asio::placeholders::error,
-                boost::asio::placeholders::bytes_transferred));
-        }
+        send_response_to(query);
       }
     } catch (InvalidMdnsMessageException e) {
       std::cout << "mDNS SERVER: Ignoring packet... reason: " << e.what() << std::endl;
@@ -96,15 +88,7 @@ private:
     start_receive();
   }
 
-  void handle_send(boost::system::error_code const& error,
-      std::size_t /*bytes_transferred*/) {
-    if (error)
-      throw boost::system::system_error(error);
-    std::cout << "mDNS SERVER: Sent DNS response!\n";
-  }
-
-
-  MdnsResponse respond_to(MdnsQuery const& query) {
+  void send_response_to(MdnsQuery const& query) {
     MdnsResponse response;
     std::vector<MdnsQuestion> questions = query.get_questions();
     for (int i = 0; i < questions.size(); i++) {
@@ -113,7 +97,17 @@ private:
       }
       catch (InvalidMdnsMessageException e) {}    // ignore unknown questions
     }
-    return response;
+
+    /* jeśli znamy jakąś odpowiedź, odpowiadamy: */
+    if (!response.get_answers().empty()) {
+      send_buffer.consume(send_buffer.size());
+      send_stream << response;
+
+      send_socket.async_send_to(send_buffer.data(), multicast_endpoint,
+          boost::bind(&MdnsServer::handle_send, this,
+            boost::asio::placeholders::error,
+            boost::asio::placeholders::bytes_transferred));
+    }
   }
 
   MdnsAnswer answer_to(MdnsQuestion const& question) {
@@ -130,8 +124,19 @@ private:
     }
   }
 
-  boost::array<char, BUFFER_SIZE> recv_buffer;
-  boost::asio::streambuf recv_stream_buffer;
+  void handle_send(boost::system::error_code const& error,
+      std::size_t /*bytes_transferred*/) {
+    if (error)
+      throw boost::system::system_error(error);
+    std::cout << "mDNS SERVER: Sent DNS response!\n";
+  }
+
+
+
+  boost::asio::streambuf recv_buffer; // bufor do odbierania
+  boost::asio::streambuf send_buffer; // bufor do wysyłania
+  std::istream recv_stream;           // strumień do odbierania
+  std::ostream send_stream;           // strumień do wysyłania
 
   udp::endpoint multicast_endpoint;   // odbieranie na porcie 5353 z adresu 224.0.0.251
   udp::endpoint remote_endpoint;      // endpoint nadawcy odbieranego pakietu

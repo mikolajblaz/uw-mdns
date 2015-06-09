@@ -83,15 +83,6 @@ private:
     }
     std::sort(servers_table.begin(), servers_table.end());
 
-    static long long count = 0;
-    std::cout << "TELNET: Init updates!\n";
-    std::string message(fill_with_spaces(CLR_SCR + "Hello world, message, count: " + std::to_string(++count)));
-    std::copy(message.begin(), message.end(), send_buffer.elems);
-    // send_buffer[1] = "ziom\n";
-    // send_buffer[2] = std::to_string(++count) + "\n";
-    // send_buffer[3] = "3 rzad";
-    // send_buffer[4] = "4 rząd\n";
-
     return servers_table.empty() ? 0 : servers_table[0].delay_sec();
   }
 
@@ -102,7 +93,6 @@ private:
 
   boost::asio::io_service& io_service;
   boost::asio::deadline_timer timer;
-  boost::array<char, UI_SCREEN_WIDTH> send_buffer;
   tcp::acceptor tcp_acceptor;
 
   servers_ptr servers;

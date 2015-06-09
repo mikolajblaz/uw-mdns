@@ -16,6 +16,10 @@ public:
   MdnsClient(boost::asio::io_service& io_service, servers_ptr const& servers) :
       timer(io_service, boost::posix_time::seconds(0)),
       io_service(io_service),
+      recv_buffer(),
+      send_buffer(),
+      recv_stream(&recv_buffer),
+      send_stream(&send_buffer),
       multicast_endpoint(address::from_string(MDNS_ADDRESS), MDNS_PORT),
       send_socket(io_service, multicast_endpoint.protocol()),
       recv_socket(io_service),
@@ -59,15 +63,15 @@ public:
 
 
 private:
-  /* Zapytanie mdns typu PTR o usługę _opozenienia._udp.local wysyłane
-   * w zadanych odstępach czasowych. */
+  /* Inicjuje zapytanie mdns typu PTR o usługę _opozenienia._udp.local,
+   * które jest wysyłane w zadanych odstępach czasowych. */
   void start_mdns_ptr_query(boost::system::error_code const& error) {
     if (error)
       throw boost::system::system_error(error);
 
     std::cout << "mDNS CLIENT: mDNS PTR query!\n";
 
-    /* Zapytanie PTR _opoznienia._udp.local. oraz PTR _ssh.local */
+    /* Zapytanie PTR _opoznienia._udp.local. oraz PTR _ssh._tcp.local */
     MdnsQuery query;
     query.add_question(opoznienia_service, QTYPE::PTR);
     query.add_question(ssh_service, QTYPE::PTR);
@@ -76,7 +80,7 @@ private:
     reset_timer(MDNS_INTERVAL_DEFAULT);   // ustawienie licznika
   }
 
-  /* Jednorazowe zapytanie mdns typu A o ip servera o nazwie 'server_name'. */
+  /* Inicjuje jednorazowe zapytanie mdns typu A o ip servera o nazwie 'server_name'. */
   void start_mdns_a_query(MdnsDomainName server_name) {
     std::cout << "mDNS CLIENT: mDNS A query!\n";
 
@@ -86,13 +90,12 @@ private:
     send_mdns_query(query);
   }
 
+  /* Wysyła zapytanie 'query': */
   void send_mdns_query(MdnsQuery const& query) {
-    /* stworzenie pakietu: */
-    boost::asio::streambuf request_buffer;    // TODO można chyba skorzystać z gotowego
-    std::ostream os(&request_buffer);
-    os << query;
+    send_buffer.consume(send_buffer.size());  // wyczyść bufor
+    send_stream << query;
 
-    send_socket.async_send_to(request_buffer.data(), multicast_endpoint,
+    send_socket.async_send_to(send_buffer.data(), multicast_endpoint,
         boost::bind(&MdnsClient::handle_mdns_send, this,
             boost::asio::placeholders::error,
             boost::asio::placeholders::bytes_transferred));
@@ -109,10 +112,10 @@ private:
 
   /* Zlecenie odbioru pakietów multicastowych. */
   void start_mdns_receiving() {
-    recv_stream_buffer.consume(recv_stream_buffer.size());  // wyczyść bufor
+    recv_buffer.consume(recv_buffer.size());  // wyczyść bufor
 
     recv_socket.async_receive_from(
-        recv_stream_buffer.prepare(BUFFER_SIZE), remote_endpoint,
+        recv_buffer.prepare(BUFFER_SIZE), remote_endpoint,
         boost::bind(&MdnsClient::handle_mdns_receive, this,
           boost::asio::placeholders::error,
           boost::asio::placeholders::bytes_transferred));
@@ -132,12 +135,11 @@ private:
     if (error)
       throw boost::system::system_error(error);
 
-    recv_stream_buffer.commit(bytes_transferred);   // przygotowanie bufora
-    std::istream is(&recv_stream_buffer);
     MdnsResponse response;
+    recv_buffer.commit(bytes_transferred);   // przygotowanie bufora
 
     try {
-      if (response.try_read(is)) {          // ignorujemy pakiety mDNS typu 'Query'
+      if (response.try_read(recv_stream)) {          // ignorujemy pakiety mDNS typu 'Query'
         std::cout << "mDNS CLIENT: datagram received: [" << response << "]\n";
         const std::vector<MdnsAnswer>& answers(response.get_answers());
         for (int i = 0; i < answers.size(); i++)
@@ -146,8 +148,6 @@ private:
     } catch (InvalidMdnsMessageException e) {
       std::cout << "mDNS CLIENT: mDNS CLIENT: Ignoring packet... reason: " << e.what() << std::endl;
     }
-
-    recv_stream_buffer.consume(recv_stream_buffer.size());
 
     start_mdns_receiving();
   }
@@ -196,10 +196,13 @@ private:
 
 
   boost::asio::deadline_timer timer;
-  boost::array<char, BUFFER_SIZE> recv_buffer;
-  boost::asio::streambuf recv_stream_buffer;
-
   boost::asio::io_service& io_service;
+
+  boost::asio::streambuf recv_buffer; // bufor do odbierania
+  boost::asio::streambuf send_buffer; // bufor do wysyłania
+  std::istream recv_stream;           // strumień do odbierania
+  std::ostream send_stream;           // strumień do wysyłania
+
   udp::endpoint multicast_endpoint;   // odbieranie na porcie 5353 z adresu 224.0.0.251
   udp::endpoint remote_endpoint;      // endpoint nadawcy odbieranego pakietu
   udp::socket send_socket;            // wysyłanie pakietów na multicast

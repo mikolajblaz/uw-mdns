@@ -17,11 +17,11 @@ using boost::asio::ip::tcp;
 class TelnetConnection {
 public:
   TelnetConnection(boost::asio::io_service& io_service, std::vector<PrintServer> const& servers_table) :
+    send_buffer(),
+    send_stream(&send_buffer),
     socket(io_service),
     active(false),
-    servers_table(servers_table),
-    send_buffer(),
-    send_stream(&send_buffer) {}
+    servers_table(servers_table) {}
 
   tcp::socket& get_socket() { return socket; }
   bool is_active() const { return active; }
@@ -78,9 +78,17 @@ private:
       std::cout << "TELNET with " << socket.remote_endpoint().address() << ": received " << bytes_transferred << " bytes:[";
       std::cout.write(recv_buffer.data(), bytes_transferred);
       std::cout << "]\n";
+      
+      for (auto it = recv_buffer.begin(); it != recv_buffer.end(); ++it) {
+        handle_keypress(*it);
+      }
 
       start_receive();
     }
+  }
+
+  void handle_keypress(unsigned char key) {
+    if (key)
   }
 
   /* Funkcja negocjująca odpowiednie opcje z klientem telnet. */
@@ -93,12 +101,13 @@ private:
 
 
   boost::array<char, BUFFER_SIZE> recv_buffer;
+  boost::asio::streambuf send_buffer; // bufor do wysyłania
+  std::ostream send_stream;           // strumień do wysyłania
+
   tcp::socket socket;
   bool active;                // czy połączenie jest aktywne
 
-  const std::vector<PrintServer>& servers_table;
-  boost::asio::streambuf send_buffer;
-  std::ostream send_stream;
+  const std::vector<PrintServer>& servers_table;  // referencja do tabelki
   int table_position;         // aktualna pozycja wyświetlanej tabelki
   float last_max_delay;       // ostatnio zarejestrowane największe opóźnienie
 };
