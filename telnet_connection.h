@@ -27,6 +27,7 @@ public:
   void activate() {
     active = true;
     negotiate_options();
+    start_receive();
   }
   void deactivate() {
     active = false;
@@ -104,7 +105,7 @@ private:
     if (error || std::string(buffer->begin(), buffer->end()) != required_options) {
       deactivate();   // nieporozumienie w negocjacjach
     } else {
-      negotiate_options();  // OK, można kontynuować
+      start_receive();  // OK, można kontynuować
     }
   }
 
