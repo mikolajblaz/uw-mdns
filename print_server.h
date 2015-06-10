@@ -17,6 +17,7 @@ public:
     std::ostringstream numbers_stream;
     float delay;          // opóźnienie w sekundach
     int proto_cnt = 0;    // liczba protokołów uwzględnianych do średniej
+    int last_char;
 
     /* Konstruujemy liczby oznaczające kolejne opóźnienia: */
     for (int proto = PROTOCOL::UDP; proto < PROTOCOL_COUNT; proto++) {
@@ -33,13 +34,16 @@ public:
 
     std::string numbers(numbers_stream.str());
     std::string ip(server.ip->to_v4().to_string());
+    ip = ip + std::string(IP_WIDTH - ip.size(), ' ');   // wyrównanie IP
 
     /* zwykłe wypisanie: */
-    if (max_delay == 0 || average_delay == 0)
+    if (max_delay == 0)
       return ip + numbers + std::string(UI_SCREEN_WIDTH - ip.size() - numbers.size(), ' ');
 
     /* else obliczamy odpowiednią pozycję ostatniego drukowalnego znaku */
-    int last_char = std::ceil(average_delay / max_delay * UI_SCREEN_WIDTH);
+    last_char = std::ceil(average_delay / max_delay * UI_SCREEN_WIDTH);
+    last_char = std::max(last_char, (int) (numbers.size() + ip.size()));
+    last_char = std::min(last_char, UI_SCREEN_WIDTH);
 
     /* Wynik to ip oraz liczby oznaczające opóźnienia z odpowiednią liczbą
      * spacji przed i po liczbach: */

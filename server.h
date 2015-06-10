@@ -1,9 +1,11 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include <iostream>
 #include <list>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
+#include <endian.h>
 #include "common.h"
 #include "get_time_usec.h"
 
@@ -21,14 +23,31 @@ public:
       std::shared_ptr<udp::socket> udp_socket, std::shared_ptr<icmp::socket> icmp_socket) :
           ip(ip),
           io_service(io_service),
-          udp_endpoint(*ip, MDNS_PORT),
-          icmp_endpoint(*ip, MDNS_PORT),
+          send_buffer(),
+          send_stream(&send_buffer),
+          udp_endpoint(*ip, UDP_PORT_DEFAULT),
+          icmp_endpoint(*ip, UDP_PORT_DEFAULT),
           tcp_endpoint(*ip, SSH_PORT),
           udp_socket(udp_socket),
           icmp_socket(icmp_socket),
           active_udp(false),
           active_tcp(false) {
     std::cout << "New Server!!! ip: " << *ip << std::endl; // TODO remove
+  }
+
+  Server(Server&& s) :
+          ip(std::move(s.ip)),
+          io_service(s.io_service),
+          send_buffer(),                          // !!!
+          send_stream(&send_buffer),              // !!!
+          udp_endpoint(std::move(s.udp_endpoint)),
+          icmp_endpoint(std::move(s.icmp_endpoint)),
+          tcp_endpoint(std::move(s.tcp_endpoint)),
+          udp_socket(std::move(s.udp_socket)),
+          icmp_socket(std::move(s.icmp_socket)),
+          active_udp(s.active_udp),
+          active_tcp(s.active_tcp) {
+    std::cout << "Copy Server!!! ip: " << *ip << std::endl; // TODO remove
   }
 
   /* Aktywuje pomiary przez UDP i ICMP. */
@@ -45,21 +64,23 @@ public:
   void disable_udp() {
     active_udp = false;
     udp_ttl = 0;
+    std::cout << "UDP Server DEACTIVATED :( !!! ip: " << *ip << std::endl; // TODO remove
   }
   /* Dezaktywuje pomiary przez TCP. */
   void disable_tcp() {
     active_udp = false;
     // TODO zamknij sockety
     tcp_ttl = 0;
+    std::cout << "UDP Server DEACTIVATED :( !!! ip: " << *ip << std::endl; // TODO remove
   }
 
   /* Wysyła pakiety do aktywnych serwerów: */
   void send_queries() {
     time_type start_time = get_time_usec();
     /* jeśli wpisy się przedawniły, usuwamy je: */
-    if (start_time > udp_ttl)
+    if (active_udp && start_time > udp_ttl)
       disable_udp();
-    if (start_time > tcp_ttl)
+    if (active_tcp && start_time > tcp_ttl)
       disable_tcp();
     
     if (active_udp) {
@@ -78,25 +99,34 @@ public:
 private:
   /* Wysyła pakiety UDP, TCP, ICMP do danego serwera. */
   void send_udp_query(time_type start_time) {
-    std::cout << *ip << ": UDP query!\n";
-    add_waiting_query(start_time, start_time, PROTOCOL::UDP);
+    std::cout << *ip << ": UDP query with time: " << start_time << "!\n";
 
-    std::shared_ptr<std::string> message(new std::string("UDP query"));   // TODO pakiet
-    udp_socket->async_send_to(boost::asio::buffer(*message), udp_endpoint,
+    uint64_t be_start_time = htobe64(start_time);
+    send_buffer.consume(send_buffer.size());
+    send_stream.write(reinterpret_cast<const char *>(&be_start_time), sizeof(be_start_time));
+
+    udp_socket->async_send_to(send_buffer.data(), udp_endpoint,
         boost::bind(&Server::handle_send, this,
             boost::asio::placeholders::error,
             boost::asio::placeholders::bytes_transferred));
+
+    add_waiting_query(start_time, start_time, PROTOCOL::UDP);
   }
 
   void send_tcp_query(time_type start_time) {
     std::cout << *ip << ": TCP query!\n";
     ++tcp_id;
-    add_waiting_query(tcp_id, start_time, PROTOCOL::TCP);       // TODO chyba trzeba osobne sockety (>=10) :/
-/*
-    tcp_socket->async_connect(tcp_endpoint,
+
+    tcp_sockets.push_front(tcp::socket(io_service, tcp::v4()));
+
+    tcp_sockets.back().async_connect(tcp_endpoint,
         boost::bind(&Server::receive_tcp_query, this,
             boost::asio::placeholders::error, tcp_id));   // TODO dobrze
-            */
+
+    add_waiting_query(tcp_id, start_time, PROTOCOL::TCP);       // TODO chyba trzeba osobne sockety (>=10) :/
+
+    if (tcp_sockets.size() >= MAX_DELAYED_QUERIES)
+      tcp_sockets.pop_back();            // usuwa pomiar jeśli jest za dużo
   }
   void send_icmp_query(time_type start_time) {
     std::cout << *ip << ": ICMP query!\n";
@@ -119,24 +149,27 @@ private:
   }
 
 public:     // TODO
-  void receive_udp_query(boost::array<char, BUFFER_SIZE>& recv_buffer, time_type end_time) {
-    std::cout << *ip << ": UDP RECEIVE query!\n";
-    long extracted_start_time;
+  void receive_udp_query(time_type start_time, time_type end_time) {
+    std::cout << *ip << ": UDP RECEIVE query with time: " << start_time << "!\n";
+    //long extracted_start_time;
     //extracted_start_time = id;        // TODO
-    finish_waiting_query(extracted_start_time, end_time, PROTOCOL::UDP);
+    finish_waiting_query(start_time, end_time, PROTOCOL::UDP);
   }
 private:
   void receive_tcp_query(boost::system::error_code const& error, long id) {
-    if (error)
-      throw boost::system::system_error(error);
-    std::cout << *ip << ": TCP RECEIVE query! ID[" << id << "]\n";
-    finish_waiting_query(id, get_time_usec(), PROTOCOL::TCP);
-    //tcp_socket->close();
+    if (error) {
+      unfinished_waiting_query(id, PROTOCOL::TCP);
+    } else {
+      std::cout << *ip << ": TCP RECEIVE query! ID[" << id << "]\n";
+      finish_waiting_query(id, get_time_usec(), PROTOCOL::TCP);
+      //tcp_socket->close();
+    }
   }
   void receive_icmp_query(long id, time_type end_time) {
     std::cout << *ip << ": ICMP RECEIVE query!\n";
   }
 
+  /* Kończy pomiar o identyfikatorze 'id'. */
   void finish_waiting_query(long id, time_type end_time, int protocol) {   //TODO classas enum?
     time_type diff_time;
     auto init_query = waiting[protocol].begin();
@@ -155,17 +188,36 @@ private:
     }
   }
 
+  /* Obsługuje nieukończony pomiar o identyfikatorze 'id'. */
+  void unfinished_waiting_query(long id, int protocol) {   //TODO classas enum?
+    auto init_query = waiting[protocol].begin();
+    while (init_query != waiting[protocol].end() && init_query->first != id)
+      ++init_query;
+
+    if (init_query != waiting[protocol].end()) {   // znaleziono; else ignoruj pomiar
+      waiting[protocol].erase(init_query);
+      if (finished[protocol].size() >= AVERAGED_MEASUREMENTS) {
+        /* usuń najstarszy skończony pomiar: */
+        delays_sum[protocol] -= finished[protocol].back();
+        finished[protocol].pop_back();
+      }
+      finished[protocol].push_front(MAX_DELAY_TIME * SEC_TO_USEC);
+    }
+  }
 
 
-  std::shared_ptr<address>        ip;
+
+  std::shared_ptr<address> ip;
   boost::asio::io_service& io_service;
+  boost::asio::streambuf send_buffer; // bufor do wysyłania
+  std::ostream send_stream;           // strumień do wysyłania
 
   udp::endpoint  udp_endpoint;
   icmp::endpoint icmp_endpoint;
   tcp::endpoint  tcp_endpoint;
   std::shared_ptr<udp::socket>    udp_socket;  // gniazdo używane do wszstkich pakietów UDP
   std::shared_ptr<icmp::socket>   icmp_socket; // gniazdo używane do wszstkich pakietów ICMP
-  std::list<tcp::socket>          tcp_socket;
+  std::list<tcp::socket>          tcp_sockets;
 
   bool active_udp;
   bool active_tcp;

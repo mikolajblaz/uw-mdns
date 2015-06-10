@@ -52,7 +52,7 @@ public:
     udp::resolver::query query(udp::v4(), "localhost", "10001");
     std::shared_ptr<udp::endpoint> udp_endpoint_ptr(new udp::endpoint(*resolver.resolve(query)));
     std::shared_ptr<address> ip_ptr(new address(udp_endpoint_ptr->address()));
-    auto it = servers->insert(std::make_pair(*ip_ptr, Server(ip_ptr, io_service, udp_socket, icmp_socket)));
+    auto it = servers->emplace(*ip_ptr, Server(ip_ptr, io_service, udp_socket, icmp_socket));
     it.first->second.enable_udp(1000);
 
     /*tcp::resolver resolver2(io_service);
@@ -181,8 +181,8 @@ private:
         /* jeśli jeszcze nie ma go w mapie, dodajemy go: */
         auto iter = servers->find(*server_address);
         if (iter == servers->end()) {
-          auto tmp_it = servers->insert(std::make_pair(*server_address,
-              Server(server_address, io_service, udp_socket, icmp_socket)));
+          auto tmp_it = servers->emplace(*server_address,
+              Server(server_address, io_service, udp_socket, icmp_socket));
           iter = tmp_it.first;
         }
 

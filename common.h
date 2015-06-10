@@ -28,6 +28,7 @@ const int PROTOCOL_COUNT = 3;
 const int BUFFER_SIZE = 1000;     // TODO ile?
 const int UI_SCREEN_WIDTH = 80;
 const int UI_SCREEN_HEIGHT = 24;
+const int IP_WIDTH = 15;
 
 const int MAX_DELAY_TIME = 10;
 const int AVERAGED_MEASUREMENTS = 10;

@@ -3,6 +3,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
+#include <endian.h>
 #include "common.h"
 #include "get_time_usec.h"    // TODO włączyć do common
 #include "mdns_client.h"
@@ -14,11 +15,15 @@ using boost::asio::ip::udp;
 using boost::asio::ip::tcp;
 using boost::asio::ip::icmp;
 
-/* Klasa do pomiarów opóźnień. Zawiera klienta mDNS i serwer telnetu. */
+/* Klasa do pomiarów opóźnień. Zawiera klienta mDNS i serwer telnetu.
+ * Jest odowiedzialna za odbieranie oakietów UDP i ICMP oraz delegowanie
+ * ich do odpowiednich instancji klasy Server w mapie 'servers'.  */
 class MeasurementClient {
 public:
   MeasurementClient(boost::asio::io_service& io_service) :
       timer(io_service, boost::posix_time::seconds(0)),
+      recv_buffer(),
+      recv_stream(&recv_buffer),
       udp_socket(new udp::socket(io_service, udp::v4())),
       icmp_socket(new icmp::socket(io_service)),
       servers(new servers_map),
@@ -46,10 +51,11 @@ private:
     reset_timer(MEASUREMENT_INTERVAL_DEFAULT);
   }
 
-
+  /* słuchanie na wspólnym porcie UDP. */
   void start_udp_receiving() {
-    udp_socket->async_receive_from(
-        boost::asio::buffer(recv_buffer), remote_udp_endpoint,
+    recv_buffer.consume(recv_buffer.size());    // wyczyść bufor
+
+    udp_socket->async_receive_from(recv_buffer.prepare(BUFFER_SIZE), remote_udp_endpoint,
         boost::bind(&MeasurementClient::handle_udp_receive, this,
           boost::asio::placeholders::error,
           boost::asio::placeholders::bytes_transferred));
@@ -59,21 +65,27 @@ private:
       std::size_t bytes_transferred) {
     if (error || bytes_transferred < sizeof(uint64_t))
       throw boost::system::system_error(error);
+
     time_type end_time = get_time_usec();
+    recv_buffer.commit(bytes_transferred);
+
+    uint64_t be_start_time;
+    recv_stream.read(reinterpret_cast<char *>(&be_start_time), sizeof(be_start_time));
 
     std::cout << "CLIENT: odebrano pakiet UDP: ";
-    std::cout.write(recv_buffer.data(), bytes_transferred);
+    std::cout << be64toh(be_start_time);
+    
     std::cout << " od adresu " << remote_udp_endpoint << std::endl;
 
     auto it = servers->find(remote_udp_endpoint.address());
     if (it != servers->end()) { // else ignoruj pakiet
-      it->second.receive_udp_query(recv_buffer, end_time); //TODO
+      it->second.receive_udp_query(be64toh(be_start_time), end_time); //TODO
     }
 
     start_udp_receiving();
   }
 
-
+  /* słuchanie na wspólnym porcie ICMP. */
   void start_icmp_receiving() {
     // TODO
   }
@@ -97,7 +109,9 @@ private:
 
 
   boost::asio::deadline_timer timer;
-  boost::array<char, BUFFER_SIZE> recv_buffer;
+
+  boost::asio::streambuf recv_buffer; // bufor do odbierania
+  std::istream recv_stream;           // strumień do odbierania
 
   std::shared_ptr<udp::socket>  udp_socket;  // gniazdo używane do wszstkich pakietów UDP
   std::shared_ptr<icmp::socket> icmp_socket; // gniazdo używane do wszstkich pakietów ICMP
