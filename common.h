@@ -30,15 +30,13 @@ const int UI_SCREEN_WIDTH = 80;
 const int UI_SCREEN_HEIGHT = 24;
 const int IP_WIDTH = 15;
 
-const int MAX_DELAY_TIME = 10;
 const int AVERAGED_MEASUREMENTS = 10;
-//const int MAX_DELAY
 const int MAX_DELAYED_QUERIES = 10;
+const int MAX_DELAY_TIME = 10;
 
+const int SSH_PORT = 22;
 const int MDNS_PORT = 5353;
 const std::string MDNS_ADDRESS = "224.0.0.251";
-const std::string MDNS_LISTEN_ADDRESS = "0.0.0.0";  //TODO może jednak?? tak to usuwam
-const int SSH_PORT = 22;
 
 const std::string OPOZNIENIA_SERVICE = "_opoznienia._udp.local.";   // TODO need it?
 const std::string SSH_SERVICE = "_ssh._tcp.local.";                      // TODO need it?
@@ -46,7 +44,7 @@ const std::string SSH_SERVICE = "_ssh._tcp.local.";                      // TODO
 
 /* ################## default values #################### */
 
-const int TTL_DEFAULT = 20;   // czas w mikrosekundach
+const int TTL_DEFAULT = 20;   // czas w sekundach
 
 const int UDP_PORT_DEFAULT = 3382;
 const int UI_PORT_DEFAULT = 3673;

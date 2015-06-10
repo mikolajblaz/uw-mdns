@@ -185,6 +185,7 @@ private:
         finished[protocol].pop_back();
       }
       finished[protocol].push_front(diff_time);
+      delays_sum[protocol] += diff_time;
     }
   }
 
@@ -202,6 +203,7 @@ private:
         finished[protocol].pop_back();
       }
       finished[protocol].push_front(MAX_DELAY_TIME * SEC_TO_USEC);
+      delays_sum[protocol] += MAX_DELAY_TIME * SEC_TO_USEC;
     }
   }
 

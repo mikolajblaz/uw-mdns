@@ -24,7 +24,7 @@ public:
       if (server.finished[proto].empty()) {
         numbers_stream << " ---";
       } else {
-        delay = server.delays_sum[proto] / server.finished[proto].size() / SEC_TO_USEC;
+        delay = (float) server.delays_sum[proto] / server.finished[proto].size() / SEC_TO_USEC;
         average_delay += delay;
         proto_cnt++;
         numbers_stream << ' ' << delay;
