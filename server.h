@@ -9,6 +9,9 @@
 #include "common.h"
 #include "get_time_usec.h"
 
+/* ze strony http://www.boost.org/doc/libs/1_58_0/doc/html/boost_asio/examples/cpp03_examples.html */
+#include "icmp_header.hpp"
+
 using boost::asio::ip::address;
 using boost::asio::ip::udp;
 using boost::asio::ip::tcp;
@@ -74,7 +77,7 @@ public:
     std::cout << "UDP Server DEACTIVATED :( !!! ip: " << *ip << std::endl; // TODO remove
   }
 
-  /* Wysyła pakiety do aktywnych serwerów: */
+  /* Wysyła pakiety UDP, TCP, ICMP do aktywnych serwerów: */
   void send_queries() {
     time_type start_time = get_time_usec();
     /* jeśli wpisy się przedawniły, usuwamy je: */
@@ -92,12 +95,17 @@ public:
     }
   }
 
-  void receive_query(long id) {
-    std::cout << *ip << ": RECEIVE query!\n";
+  void receive_udp_query(time_type start_time, time_type end_time) {
+    std::cout << *ip << ": UDP RECEIVE query with time: " << start_time << "!\n"; //TODO
+    finish_waiting_query(start_time, end_time, PROTOCOL::UDP);
+  }
+
+  void receive_icmp_query(long id, time_type end_time) {
+    std::cout << *ip << ": ICMP RECEIVE query!\n";
+    finish_waiting_query(id, end_time, PROTOCOL::ICMP);
   }
 
 private:
-  /* Wysyła pakiety UDP, TCP, ICMP do danego serwera. */
   void send_udp_query(time_type start_time) {
     std::cout << *ip << ": UDP query with time: " << start_time << "!\n";
 
@@ -111,6 +119,25 @@ private:
             boost::asio::placeholders::bytes_transferred));
 
     add_waiting_query(start_time, start_time, PROTOCOL::UDP);
+  }
+
+  void send_icmp_query(time_type start_time) {
+    std::cout << *ip << ": ICMP query!\n";
+    ++icmp_id;
+
+    std::string message("ICMP QUERY");        // TODO TODO TODO TODO
+
+    send_buffer.consume(send_buffer.size());
+    default_icmp_header.sequence_number(icmp_id);
+    compute_checksum(default_icmp_header, message.begin(), message.end());
+    send_stream << default_icmp_header << message;
+
+    icmp_socket->async_send_to(send_buffer.data(), icmp_endpoint,
+        boost::bind(&Server::handle_send, this,
+            boost::asio::placeholders::error,
+            boost::asio::placeholders::bytes_transferred));
+
+    add_waiting_query(icmp_id, start_time, PROTOCOL::ICMP);
   }
 
   void send_tcp_query(time_type start_time) {
@@ -128,9 +155,15 @@ private:
     if (tcp_sockets.size() >= MAX_DELAYED_QUERIES)
       tcp_sockets.pop_back();            // usuwa pomiar jeśli jest za dużo
   }
-  void send_icmp_query(time_type start_time) {
-    std::cout << *ip << ": ICMP query!\n";
-    add_waiting_query(icmp_id, start_time, PROTOCOL::ICMP);
+
+  void receive_tcp_query(boost::system::error_code const& error, long id) {
+    if (error) {
+      unfinished_waiting_query(id, PROTOCOL::TCP);
+    } else {
+      std::cout << *ip << ": TCP RECEIVE query! ID[" << id << "]\n";
+      finish_waiting_query(id, get_time_usec(), PROTOCOL::TCP);
+      //tcp_socket->close();
+    }
   }
 
   void add_waiting_query(long id, time_type start_time, int protocol) {  // TODO enum class ?
@@ -141,32 +174,11 @@ private:
   }
 
   /* Uniwersalny handler po wysłaniu dla wszystkich protokołów. */
-  void handle_send(boost::system::error_code const& error,
+  void handle_send(boost::system::error_code const& error,          // TODO usunąć wszystkie placeholders! NA CO MI ONE!!!!!!
       std::size_t /*bytes_transferred*/) {
     if (error)
       throw boost::system::system_error(error);
     std::cout << *ip << ": Measurement query successfully sent!\n";
-  }
-
-public:     // TODO
-  void receive_udp_query(time_type start_time, time_type end_time) {
-    std::cout << *ip << ": UDP RECEIVE query with time: " << start_time << "!\n";
-    //long extracted_start_time;
-    //extracted_start_time = id;        // TODO
-    finish_waiting_query(start_time, end_time, PROTOCOL::UDP);
-  }
-private:
-  void receive_tcp_query(boost::system::error_code const& error, long id) {
-    if (error) {
-      unfinished_waiting_query(id, PROTOCOL::TCP);
-    } else {
-      std::cout << *ip << ": TCP RECEIVE query! ID[" << id << "]\n";
-      finish_waiting_query(id, get_time_usec(), PROTOCOL::TCP);
-      //tcp_socket->close();
-    }
-  }
-  void receive_icmp_query(long id, time_type end_time) {
-    std::cout << *ip << ": ICMP RECEIVE query!\n";
   }
 
   /* Kończy pomiar o identyfikatorze 'id'. */
@@ -221,17 +233,19 @@ private:
   std::shared_ptr<icmp::socket>   icmp_socket; // gniazdo używane do wszstkich pakietów ICMP
   std::list<tcp::socket>          tcp_sockets;
 
-  bool active_udp;
-  bool active_tcp;
-  time_type udp_ttl;
-  time_type tcp_ttl;
+  icmp_header default_icmp_header;
+
+  bool active_udp;                    // czy pomiary UDP i ICMP są aktywne
+  bool active_tcp;                    // czy pomiary TCP są aktywne
+  time_type udp_ttl;                  // TTL serwera UDP
+  time_type tcp_ttl;                  // TTL serwera TCP
 
   unsigned long tcp_id;
   unsigned long icmp_id;
 
-  std::list<time_type> finished[PROTOCOL_COUNT];
-  std::list<std::pair<long, time_type> > waiting[PROTOCOL_COUNT];
-  time_type delays_sum[PROTOCOL_COUNT];
+  std::list<time_type> finished[PROTOCOL_COUNT];    // lista ukończonych pomiarów
+  std::list<std::pair<long, time_type> > waiting[PROTOCOL_COUNT]; // lista oczekujących pomiarów
+  time_type delays_sum[PROTOCOL_COUNT];             // suma opóźnień
 };
 
 #endif  // SERVER_H

@@ -11,6 +11,11 @@
 #include "server.h"
 #include "mdns_message.h"
 
+/* ze strony http://www.boost.org/doc/libs/1_58_0/doc/html/boost_asio/examples/cpp03_examples.html */
+#include "ipv4_header.hpp"
+#include "icmp_header.hpp"
+
+
 using boost::asio::ip::udp;
 using boost::asio::ip::tcp;
 using boost::asio::ip::icmp;
@@ -25,7 +30,7 @@ public:
       recv_buffer(),
       recv_stream(&recv_buffer),
       udp_socket(new udp::socket(io_service, udp::v4())),
-      icmp_socket(new icmp::socket(io_service)),
+      icmp_socket(new icmp::socket(io_service, icmp::v4())),
       servers(new servers_map),
       mdns_client(io_service, servers, udp_socket, icmp_socket),
       telnet_server(io_service, servers) {
@@ -87,13 +92,39 @@ private:
 
   /* słuchanie na wspólnym porcie ICMP. */
   void start_icmp_receiving() {
-    // TODO
+    recv_buffer.consume(recv_buffer.size());
+
+    icmp_socket->async_receive(recv_buffer.prepare(BUFFER_SIZE),
+        boost::bind(&MeasurementClient::handle_icmp_receive, this,
+          boost::asio::placeholders::error,
+          boost::asio::placeholders::bytes_transferred));
   }
 
   void handle_icmp_receive(boost::system::error_code const& error,
-      std::size_t /*bytes_transferred*/) {
+      std::size_t bytes_transferred) {
     if (error)
       throw boost::system::system_error(error);
+
+    time_type end_time = get_time_usec();
+    recv_buffer.commit(bytes_transferred);
+
+    ipv4_header ipv4_hdr;
+    icmp_header icmp_hdr;
+    recv_stream >> ipv4_hdr >> icmp_hdr;
+
+    if (recv_stream && icmp_hdr.type() == icmp_header::echo_reply
+          && icmp_hdr.identifier() == 0) {
+      std::cout << "CLIENT: odebrano pakiet ICMP: ";
+      //std::cout.write(recv_buffer.rdbuf(), bytes_transferred);
+      std::cout << " od adresu " << ipv4_hdr.source_address() << std::endl;
+
+      int seq_num = icmp_hdr.sequence_number();    // numer sekwencyjny jako id pakietu
+
+      auto it = servers->find(ipv4_hdr.source_address());
+      if (it != servers->end()) { // else ignoruj pakiet
+        it->second.receive_icmp_query(seq_num, end_time);
+      }
+    }
 
     start_icmp_receiving();
   }
@@ -106,6 +137,7 @@ private:
         boost::asio::placeholders::error)); // TODO errors
     // TODO czy to działa?
   }
+
 
 
   boost::asio::deadline_timer timer;

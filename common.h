@@ -32,7 +32,7 @@ const int IP_WIDTH = 15;
 
 const int AVERAGED_MEASUREMENTS = 10;
 const int MAX_DELAYED_QUERIES = 10;
-const int MAX_DELAY_TIME = 10;
+const float MAX_DELAY_TIME = 0.001;
 
 const int SSH_PORT = 22;
 const int MDNS_PORT = 5353;
