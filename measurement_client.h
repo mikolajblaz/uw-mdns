@@ -5,7 +5,7 @@
 #include <boost/bind.hpp>
 #include <endian.h>
 #include "common.h"
-#include "get_time_usec.h"    // TODO włączyć do common
+#include "get_time_usec.h"
 #include "mdns_client.h"
 #include "telnet_server.h"
 #include "server.h"
@@ -46,7 +46,6 @@ public:
 private:
   /* Inicjuje wysłanie pakietów rozpoczynających pomiar do wszystkich serwerów. */
   void init_measurements() {
-    std::cout << "Init measurements!\n";
     for (auto it = servers->begin(); it != servers->end(); ++it) {
       it->second.send_queries();
     }
@@ -64,18 +63,13 @@ private:
 
   void handle_udp_receive(boost::system::error_code const& error,
       std::size_t bytes_transferred) {
-    if (error || bytes_transferred < sizeof(uint64_t))
-      throw boost::system::system_error(error);
+    if (!error && bytes_transferred >= sizeof(uint64_t)) {
+      time_type end_time = get_time_usec();
 
-    time_type end_time = get_time_usec();
-
-    std::cout << "CLIENT: odebrano pakiet UDP: ";
-    std::cout << be64toh(time_buffer[0]);
-    std::cout << " od adresu " << remote_udp_endpoint << std::endl;
-
-    auto it = servers->find(remote_udp_endpoint.address());
-    if (it != servers->end()) { // else ignoruj pakiet
-      it->second.receive_udp_query(be64toh(time_buffer[0]), end_time); //TODO
+      auto it = servers->find(remote_udp_endpoint.address());
+      if (it != servers->end()) { // else ignoruj pakiet
+        it->second.receive_udp_query(be64toh(time_buffer[0]), end_time);
+      }
     }
 
     start_udp_receiving();
@@ -93,27 +87,22 @@ private:
 
   void handle_icmp_receive(boost::system::error_code const& error,
       std::size_t bytes_transferred) {
-    if (error)
-      throw boost::system::system_error(error);
+    if (!error) {
+      time_type end_time = get_time_usec();
+      recv_buffer.commit(bytes_transferred);
 
-    time_type end_time = get_time_usec();
-    recv_buffer.commit(bytes_transferred);
+      ipv4_header ipv4_hdr;
+      icmp_header icmp_hdr;
+      recv_stream >> ipv4_hdr >> icmp_hdr;
 
-    ipv4_header ipv4_hdr;
-    icmp_header icmp_hdr;
-    recv_stream >> ipv4_hdr >> icmp_hdr;
+      if (recv_stream && icmp_hdr.type() == icmp_header::echo_reply
+            && icmp_hdr.identifier() == 0) {
+        int seq_num = icmp_hdr.sequence_number();    // numer sekwencyjny jako id pakietu
 
-    if (recv_stream && icmp_hdr.type() == icmp_header::echo_reply
-          && icmp_hdr.identifier() == 0) {
-      std::cout << "CLIENT: odebrano pakiet ICMP: ";
-      //std::cout.write(recv_buffer.rdbuf(), bytes_transferred);
-      std::cout << " od adresu " << ipv4_hdr.source_address() << std::endl;
-
-      int seq_num = icmp_hdr.sequence_number();    // numer sekwencyjny jako id pakietu
-
-      auto it = servers->find(ipv4_hdr.source_address());
-      if (it != servers->end()) { // else ignoruj pakiet
-        it->second.receive_icmp_query(seq_num, end_time);
+        auto it = servers->find(ipv4_hdr.source_address());
+        if (it != servers->end()) { // else ignoruj pakiet
+          it->second.receive_icmp_query(seq_num, end_time);
+        }
       }
     }
 

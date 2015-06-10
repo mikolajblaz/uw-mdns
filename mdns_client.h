@@ -42,10 +42,6 @@ public:
       recv_socket.set_option(boost::asio::ip::multicast::join_group(
           address::from_string(MDNS_ADDRESS)));     // adres 224.0.0.251
 
-      /* nie pozwalamy na wysyłanie do siebie: */
-      boost::asio::ip::multicast::enable_loopback option(false);
-      //send_socket.set_option(option);     // TODO turn on?
-
       start_mdns_receiving();
       start_mdns_ptr_query();
 
@@ -59,9 +55,6 @@ private:
   /* Inicjuje zapytanie mdns typu PTR o usługę _opozenienia._udp.local,
    * które jest wysyłane w zadanych odstępach czasowych. */
   void start_mdns_ptr_query() {
-
-    std::cout << "mDNS CLIENT: mDNS PTR query!\n";
-
     /* Zapytanie PTR _opoznienia._udp.local. oraz PTR _ssh._tcp.local */
     MdnsQuery query;
     query.add_question(opoznienia_service, QTYPE::PTR);
@@ -73,8 +66,6 @@ private:
 
   /* Inicjuje jednorazowe zapytanie mdns typu A o ip servera o nazwie 'server_name'. */
   void start_mdns_a_query(MdnsDomainName server_name) {
-    std::cout << "mDNS CLIENT: mDNS A query!\n";
-
     /* Zapytanie A _opoznienia._udp.local. */
     MdnsQuery query;
     query.add_question(server_name, QTYPE::A);
@@ -87,18 +78,10 @@ private:
     send_stream << query;
 
     send_socket.async_send_to(send_buffer.data(), multicast_endpoint,
-        boost::bind(&MdnsClient::handle_mdns_send, this,
-            boost::asio::placeholders::error,
-            boost::asio::placeholders::bytes_transferred));
+        boost::bind(&MdnsClient::handle_mdns_send, this));
   }
 
-  void handle_mdns_send(boost::system::error_code const& error,
-      std::size_t /*bytes_transferred*/) {
-    if (error)
-      throw boost::system::system_error(error);
-    std::cout << "mDNS CLIENT: mDNS query successfully sent!\n";
-  }
-
+  void handle_mdns_send() {}
 
 
   /* Zlecenie odbioru pakietów multicastowych. */
@@ -123,21 +106,17 @@ private:
    */
   void handle_mdns_receive(boost::system::error_code const& error,
       std::size_t bytes_transferred) {
-    if (error)
-      throw boost::system::system_error(error);
+    if (!error) {
+      MdnsResponse response;
+      recv_buffer.commit(bytes_transferred);   // przygotowanie bufora
 
-    MdnsResponse response;
-    recv_buffer.commit(bytes_transferred);   // przygotowanie bufora
-
-    try {
-      if (response.try_read(recv_stream)) {          // ignorujemy pakiety mDNS typu 'Query'
-        std::cout << "mDNS CLIENT: datagram received: [" << response << "]\n";
-        const std::vector<MdnsAnswer>& answers(response.get_answers());
-        for (int i = 0; i < answers.size(); i++)
-          handle_answer(answers[i]);
-      }
-    } catch (InvalidMdnsMessageException e) {
-      std::cout << "mDNS CLIENT: mDNS CLIENT: Ignoring packet... reason: " << e.what() << std::endl;
+      try {
+        if (response.try_read(recv_stream)) {       // ignorujemy pakiety mDNS typu 'Query'
+          const std::vector<MdnsAnswer>& answers(response.get_answers());
+          for (int i = 0; i < answers.size(); i++)
+            handle_answer(answers[i]);
+        }
+      } catch (InvalidMdnsMessageException e) {}    // ignorujemy niepoprawne pakiety
     }
 
     start_mdns_receiving();

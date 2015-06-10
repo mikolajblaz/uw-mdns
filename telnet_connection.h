@@ -7,7 +7,6 @@
 #include "get_time_usec.h"
 #include "print_server.h"
 
-const int MAX_OPTIONS = 6;
 const std::string IAC_WILL_SGA  = "\377\373\003";
 const std::string IAC_WILL_ECHO = "\377\373\001";
 const std::string CLR_SCR       = "\033[2J\033[H";
@@ -36,6 +35,7 @@ public:
     send_update();
     start_receive();
   }
+  /* Dezaktywuje połączenie. */
   void deactivate() {
     active = false;
     socket.close();
@@ -60,29 +60,17 @@ public:
     }
 
     boost::asio::async_write(socket, send_buffer.data(),
-        boost::bind(&TelnetConnection::handle_send, this,
-            boost::asio::placeholders::error,
-            boost::asio::placeholders::bytes_transferred));
+        boost::bind(&TelnetConnection::handle_send, this));
   }
 
 private:
-  void handle_send(boost::system::error_code const& error,
-      std::size_t bytes_transferred) {
-    if (error)
-      throw boost::system::system_error(error);
-    std::cout << "TELNET with " << socket.remote_endpoint().address() << ": send update finished successfully, sent " << bytes_transferred << " bytes!\n";
-  }
-
   /* Obsługa odebranych danych od klienta. */
   void handle_receive(boost::system::error_code const& error,
       std::size_t bytes_transferred) {
     if (error) {
       deactivate();   // koniec połączenia
     } else {
-      std::cout << "TELNET with " << socket.remote_endpoint().address() << ": received " << bytes_transferred << " bytes:[";
-      std::cout.write(recv_buffer.data(), bytes_transferred);
-      std::cout << "]\n";
-      
+
       for (auto it = recv_buffer.begin(); it != recv_buffer.end(); ++it) {
         handle_keypress(*it);
       }
@@ -92,15 +80,14 @@ private:
     }
   }
 
+  /* Ibsługa naciśnięcie jednego przycisku przez klienta. */
   void handle_keypress(unsigned char key) {
     if (key == KEY_UP) {
       if (table_position > 0) {
-        std::cout << "MOVING UPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP\n";
         table_position--;
       }
     } else if (key == KEY_DOWN) {
       if (table_position < servers_table.size() - 1) {
-        std::cout << "MOVING DOWNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\n";
         table_position++;
       }
     }
@@ -110,9 +97,9 @@ private:
   void negotiate_options(std::string const& options) {
     boost::system::error_code error;
     socket.send(boost::asio::buffer(options), 0, error);
-    if (error)
-      deactivate();     // TODO może bez tego?
   }
+
+  void handle_send() {}
 
 
   boost::array<char, 2> recv_buffer;  // bufor do odbierania znaków

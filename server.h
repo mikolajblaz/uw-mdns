@@ -37,9 +37,7 @@ public:
           udp_socket(udp_socket),
           icmp_socket(icmp_socket),
           active_udp(false),
-          active_tcp(false) {
-    std::cout << "New Server!!! ip: " << *ip << std::endl; // TODO remove
-  }
+          active_tcp(false) {}
 
   Server(Server&& s) :
           ip(std::move(s.ip)),
@@ -52,9 +50,7 @@ public:
           udp_socket(std::move(s.udp_socket)),
           icmp_socket(std::move(s.icmp_socket)),
           active_udp(s.active_udp),
-          active_tcp(s.active_tcp) {
-    std::cout << "Copy Server!!! ip: " << *ip << std::endl; // TODO remove
-  }
+          active_tcp(s.active_tcp) {}
 
   /* Aktywuje pomiary przez UDP i ICMP. */
   void enable_udp(uint32_t ttl) {
@@ -70,14 +66,12 @@ public:
   void disable_udp() {
     active_udp = false;
     udp_ttl = 0;
-    std::cout << "UDP Server DEACTIVATED :( !!! ip: " << *ip << std::endl; // TODO remove
   }
   /* Dezaktywuje pomiary przez TCP. */
   void disable_tcp() {
     active_udp = false;
-    // TODO zamknij sockety
+    tcp_sockets.clear();
     tcp_ttl = 0;
-    std::cout << "UDP Server DEACTIVATED :( !!! ip: " << *ip << std::endl; // TODO remove
   }
 
   /* Wysyła pakiety UDP, TCP, ICMP do aktywnych serwerów: */
@@ -99,33 +93,26 @@ public:
   }
 
   void receive_udp_query(time_type start_time, time_type end_time) {
-    std::cout << *ip << ": UDP RECEIVE query with time: " << start_time << "!\n"; //TODO
     finish_waiting_query(start_time, end_time, PROTOCOL::UDP);
   }
 
   void receive_icmp_query(long id, time_type end_time) {
-    std::cout << *ip << ": ICMP RECEIVE query!\n";
     finish_waiting_query(id, end_time, PROTOCOL::ICMP);
   }
 
 private:
   void send_udp_query(time_type start_time) {
-    std::cout << *ip << ": UDP query with time: " << start_time << "!\n";
-
     uint64_t be_start_time = htobe64(start_time);
     send_buffer.consume(send_buffer.size());
     send_stream.write(reinterpret_cast<const char *>(&be_start_time), sizeof(be_start_time));
 
     udp_socket->async_send_to(send_buffer.data(), udp_endpoint,
-        boost::bind(&Server::handle_send, this,
-            boost::asio::placeholders::error,
-            boost::asio::placeholders::bytes_transferred));
+        boost::bind(&Server::handle_send, this));
 
     add_waiting_query(start_time, start_time, PROTOCOL::UDP);
   }
 
   void send_icmp_query(time_type start_time) {
-    std::cout << *ip << ": ICMP query!\n";
     ++icmp_id;
     icmp_header icmp_header;
     std::string icmp_message(even_decimal_to_bcd(ICMP_MESSAGE));
@@ -136,18 +123,17 @@ private:
     send_stream << icmp_header << icmp_message;
 
     icmp_socket->async_send_to(send_buffer.data(), icmp_endpoint,
-        boost::bind(&Server::handle_send, this,
-            boost::asio::placeholders::error,
-            boost::asio::placeholders::bytes_transferred));
+        boost::bind(&Server::handle_send, this));
 
     add_waiting_query(icmp_id, start_time, PROTOCOL::ICMP);
   }
 
+  void handle_send() {}
+
   void send_tcp_query(time_type start_time) {
-    std::cout << *ip << ": TCP query!\n";
     ++tcp_id;
 
-    tcp_sockets.push_front(tcp::socket(io_service, tcp::v4()));
+    tcp_sockets.push_front(tcp::socket(io_service, tcp::v4())); // nowy socket
 
     tcp_sockets.back().async_connect(tcp_endpoint,
         boost::bind(&Server::receive_tcp_query, this, tcp_id,
@@ -163,28 +149,19 @@ private:
     if (error) {
       unfinished_waiting_query(id, PROTOCOL::TCP);
     } else {
-      std::cout << *ip << ": TCP RECEIVE query! ID[" << id << "]\n";
       finish_waiting_query(id, get_time_usec(), PROTOCOL::TCP);
     }
   }
 
-  void add_waiting_query(long id, time_type start_time, int protocol) {  // TODO enum class ?
+  void add_waiting_query(long id, time_type start_time, int protocol) {
     if (waiting[protocol].size() >= MAX_DELAYED_QUERIES) {
       waiting[protocol].pop_back();    // porzuć najstarszy zaczęty pomiar
     }
     waiting[protocol].push_front(std::make_pair(id, start_time));
   }
 
-  /* Uniwersalny handler po wysłaniu protokołów UDP i ICMP. */
-  void handle_send(boost::system::error_code const& error,          // TODO usunąć wszystkie placeholders! NA CO MI ONE!!!!!!
-      std::size_t /*bytes_transferred*/) {
-    if (error)
-      throw boost::system::system_error(error);
-    std::cout << *ip << ": Measurement query successfully sent!\n";
-  }
-
   /* Kończy pomiar o identyfikatorze 'id'. */
-  void finish_waiting_query(long id, time_type end_time, int protocol) {   //TODO classas enum?
+  void finish_waiting_query(long id, time_type end_time, int protocol) {
     time_type diff_time;
     auto init_query = waiting[protocol].begin();
     while (init_query != waiting[protocol].end() && init_query->first != id)
@@ -204,7 +181,7 @@ private:
   }
 
   /* Obsługuje nieukończony pomiar o identyfikatorze 'id'. */
-  void unfinished_waiting_query(long id, int protocol) {   //TODO classas enum?
+  void unfinished_waiting_query(long id, int protocol) {
     auto init_query = waiting[protocol].begin();
     while (init_query != waiting[protocol].end() && init_query->first != id)
       ++init_query;

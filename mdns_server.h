@@ -33,10 +33,6 @@ public:
       recv_socket.set_option(boost::asio::ip::multicast::join_group(
           address::from_string(MDNS_ADDRESS)));     // adres 224.0.0.251
 
-      /* nie pozwalamy na wysyłanie do siebie: */
-      boost::asio::ip::multicast::enable_loopback option(false);
-      //send_socket.set_option(option);     // TODO turn on?
-
       /* łączymy się z adresem multicastowym do wysyłania: */
       send_socket.connect(multicast_endpoint);
       local_server_address = get_local_server_address();
@@ -79,20 +75,17 @@ private:
    * Następnie serwer odpowiada pakietem mDNS typu 'Response'. */
   void handle_receive(boost::system::error_code const& error,
       std::size_t bytes_transferred) {
-    if (error)
-      throw boost::system::system_error(error);
+    if (!error) {
+      MdnsQuery query;
+      recv_buffer.commit(bytes_transferred);   // przygotowanie bufora
 
-    MdnsQuery query;
-    recv_buffer.commit(bytes_transferred);   // przygotowanie bufora
+      try {
+        if (query.try_read(recv_stream))          // ignorujemy pakiety mDNS typu 'Response'
+          send_response_to(query);
 
-    try {
-      if (query.try_read(recv_stream)) {          // ignorujemy pakiety mDNS typu 'Response'
-        std::cout << "mDNS SERVER: datagram received: [" << query << "] from: " << remote_endpoint << "\n";
-
-        send_response_to(query);
+      } catch (InvalidMdnsMessageException e) {
+        std::cout << "mDNS SERVER: Ignoring packet... reason: " << e.what() << std::endl;
       }
-    } catch (InvalidMdnsMessageException e) {
-      std::cout << "mDNS SERVER: Ignoring packet... reason: " << e.what() << std::endl;
     }
 
     start_receive();
@@ -115,9 +108,7 @@ private:
       send_stream << response;
 
       send_socket.async_send_to(send_buffer.data(), multicast_endpoint,
-          boost::bind(&MdnsServer::handle_send, this,
-            boost::asio::placeholders::error,
-            boost::asio::placeholders::bytes_transferred));
+          boost::bind(&MdnsServer::handle_send, this));
     }
   }
 
@@ -141,12 +132,7 @@ private:
     throw InvalidMdnsMessageException("Unknown question type");
   }
 
-  void handle_send(boost::system::error_code const& error,
-      std::size_t /*bytes_transferred*/) {
-    if (error)
-      throw boost::system::system_error(error);
-    std::cout << "mDNS SERVER: Sent DNS response!\n";
-  }
+  void handle_send() {}
 
 
 
