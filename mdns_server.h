@@ -35,24 +35,25 @@ public:
     boost::asio::ip::multicast::enable_loopback option(false);
     //send_socket.set_option(option);     // TODO turn on?
 
-    // TODO connect
+    /* łączymy się z adresem multicastowym do wysyłania: */
+    send_socket.connect(multicast_endpoint);
     local_server_address = get_local_server_address();
 
     start_receive();
   }
 
 private:
-  /* Zwraca nową nazwę serwera opóźnień w sieci lokalnej. */
+  /* Zwraca nową nazwę serwera usługi opóźnień w sieci lokalnej. */
   std::string get_local_opoznienia_name() {
     return boost::asio::ip::host_name() + '.' + OPOZNIENIA_SERVICE;
   }
+  /* Zwraca nową nazwę serwera usługi ssh w sieci lokalnej. */
   std::string get_local_ssh_name() {
     return boost::asio::ip::host_name() + '.' + SSH_SERVICE;
   }
   /* Zwraca adres IP serwera w sieci lokalnej. */
   uint32_t get_local_server_address() {
-    // TODO wziąć z podłączonego gniazda UDP
-    return address::from_string("192.168.0.15").to_v4().to_ulong();
+    return send_socket.local_endpoint().address().to_v4().to_ulong();
   }
 
   /* zlecenie asynchronicznego odbioru pakietów multicastowych */
