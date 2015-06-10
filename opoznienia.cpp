@@ -1,9 +1,10 @@
 #include <iostream>
+#include <thread>
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
 #include <boost/system/system_error.hpp>
+#include <boost/thread/thread.hpp>
 
-#include <map>
 #include "common.h"
 #include "mdns_server.h"
 #include "measurement_server.h"
@@ -19,7 +20,7 @@ int main(int argc, char const *argv[]) {
   MeasurementServer measurement_server(io_service_servers);
   MeasurementClient measurement_client(io_service);
 
-  boost::thread servers_thread(
+  std::thread servers_thread(
       boost::bind(&boost::asio::io_service::run, &io_service_servers));
   io_service.run();
   servers_thread.join();

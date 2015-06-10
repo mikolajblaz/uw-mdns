@@ -40,7 +40,7 @@ private:
 
     std::cout << "Init measurements!\n";
     for (auto it = servers->begin(); it != servers->end(); ++it) {
-      it->second.send_queries(udp_socket, icmp_socket);
+      it->second.send_queries();
     }
 
     reset_timer(MEASUREMENT_INTERVAL_DEFAULT);
