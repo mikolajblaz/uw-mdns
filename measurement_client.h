@@ -33,7 +33,7 @@ public:
           udp_socket(new udp::socket(io_service, udp::v4())),
           icmp_socket(new icmp::socket(io_service, icmp::v4())),
           servers(new servers_map),
-          mdns_client(io_service, servers, udp_socket, icmp_socket, udp_port, mdns_interval),
+          mdns_client(io_service, servers, udp_socket, icmp_socket, mdns_interval),
           telnet_server(io_service, servers, ui_port, ui_refresh_interval) {
 
     start_udp_receiving();

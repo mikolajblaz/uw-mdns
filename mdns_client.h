@@ -16,7 +16,7 @@ class MdnsClient {
 public:
   MdnsClient(boost::asio::io_service& io_service, servers_ptr servers,
       std::shared_ptr<udp::socket> udp_socket, std::shared_ptr<icmp::socket> icmp_socket,
-      int mdns_interval, int mdns_port) :
+      int mdns_interval) :
           timer(io_service, boost::posix_time::seconds(0)),
           io_service(io_service),
           udp_socket(udp_socket),
@@ -25,7 +25,7 @@ public:
           send_buffer(),
           recv_stream(&recv_buffer),
           send_stream(&send_buffer),
-          multicast_endpoint(address::from_string(MDNS_ADDRESS), mdns_port),
+          multicast_endpoint(address::from_string(MDNS_ADDRESS), MDNS_PORT),
           send_socket(io_service, multicast_endpoint.protocol()),
           recv_socket(io_service),
           servers(servers),
@@ -38,7 +38,7 @@ public:
       /* dołączamy do grupy adresu 224.0.0.251, odbieramy na porcie 5353: */
       recv_socket.open(udp::v4());
       recv_socket.set_option(udp::socket::reuse_address(true));
-      recv_socket.bind(udp::endpoint(udp::v4(), mdns_port));    // port 5353
+      recv_socket.bind(udp::endpoint(udp::v4(), MDNS_PORT));    // port 5353
       recv_socket.set_option(boost::asio::ip::multicast::join_group(
           address::from_string(MDNS_ADDRESS)));     // adres 224.0.0.251
 
