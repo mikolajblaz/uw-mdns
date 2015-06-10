@@ -55,9 +55,7 @@ private:
 
   /* słuchanie na wspólnym porcie UDP. */
   void start_udp_receiving() {
-    recv_buffer.consume(recv_buffer.size());    // wyczyść bufor
-
-    udp_socket->async_receive_from(recv_buffer.prepare(BUFFER_SIZE), remote_udp_endpoint,
+    udp_socket->async_receive_from(boost::asio::buffer(time_buffer), remote_udp_endpoint,
         boost::bind(&MeasurementClient::handle_udp_receive, this,
           boost::asio::placeholders::error,
           boost::asio::placeholders::bytes_transferred));
@@ -69,19 +67,14 @@ private:
       throw boost::system::system_error(error);
 
     time_type end_time = get_time_usec();
-    recv_buffer.commit(bytes_transferred);
-
-    uint64_t be_start_time;
-    recv_stream.read(reinterpret_cast<char *>(&be_start_time), sizeof(be_start_time));
 
     std::cout << "CLIENT: odebrano pakiet UDP: ";
-    std::cout << be64toh(be_start_time);
-    
+    std::cout << be64toh(time_buffer[0]);
     std::cout << " od adresu " << remote_udp_endpoint << std::endl;
 
     auto it = servers->find(remote_udp_endpoint.address());
     if (it != servers->end()) { // else ignoruj pakiet
-      it->second.receive_udp_query(be64toh(be_start_time), end_time); //TODO
+      it->second.receive_udp_query(be64toh(time_buffer[0]), end_time); //TODO
     }
 
     start_udp_receiving();
@@ -136,6 +129,7 @@ private:
 
   boost::asio::deadline_timer timer;
 
+  boost::array<uint64_t, 1> time_buffer;  // bufor do obierania czasu
   boost::asio::streambuf recv_buffer; // bufor do odbierania
   std::istream recv_stream;           // strumień do odbierania
 

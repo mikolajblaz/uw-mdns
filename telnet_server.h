@@ -15,19 +15,12 @@ public:
   TelnetServer(boost::asio::io_service& io_service, servers_ptr servers) :
       io_service(io_service),
       timer(io_service, boost::posix_time::seconds(0)),
-      tcp_acceptor(io_service, tcp::v4()),
+      tcp_acceptor(io_service, tcp::endpoint(tcp::v4(), UI_PORT_DEFAULT)),
       servers(servers),
       new_connection() {
 
-    boost::system::error_code error;
-    tcp_acceptor.bind(tcp::endpoint(tcp::v4(), UI_PORT_DEFAULT), error);
-
-    if (error) {
-      std::cerr << "Failed to start Telnet Server!\n";
-    } else {
-      init_updates();
-      start_accept();
-    }
+    init_updates();
+    start_accept();
   }
 
 
