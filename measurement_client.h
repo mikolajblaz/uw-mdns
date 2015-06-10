@@ -38,16 +38,13 @@ public:
     start_udp_receiving();
     start_icmp_receiving();
 
-    init_measurements(boost::system::error_code());
+    init_measurements();
   }
 
 
 private:
   /* Inicjuje wysłanie pakietów rozpoczynających pomiar do wszystkich serwerów. */
-  void init_measurements(boost::system::error_code const& error) {
-    if (error)
-      throw boost::system::system_error(error);
-
+  void init_measurements() {
     std::cout << "Init measurements!\n";
     for (auto it = servers->begin(); it != servers->end(); ++it) {
       it->second.send_queries();
@@ -131,11 +128,8 @@ private:
 
   /* Ustawia timer na czas późiejszy o 'seconds' sekund względem poprzedniego czasu. */
   void reset_timer(int seconds) {
-    // TODO może jeden obiekt reprezentujący czas?
     timer.expires_at(timer.expires_at() + boost::posix_time::seconds(seconds));
-    timer.async_wait(boost::bind(&MeasurementClient::init_measurements, this,
-        boost::asio::placeholders::error)); // TODO errors
-    // TODO czy to działa?
+    timer.async_wait(boost::bind(&MeasurementClient::init_measurements, this));
   }
 
 
@@ -145,8 +139,8 @@ private:
   boost::asio::streambuf recv_buffer; // bufor do odbierania
   std::istream recv_stream;           // strumień do odbierania
 
-  std::shared_ptr<udp::socket>  udp_socket;  // gniazdo używane do wszstkich pakietów UDP
-  std::shared_ptr<icmp::socket> icmp_socket; // gniazdo używane do wszstkich pakietów ICMP
+  std::shared_ptr<udp::socket>  udp_socket;  // gniazdo używane do wszystkich pakietów UDP
+  std::shared_ptr<icmp::socket> icmp_socket; // gniazdo używane do wszystkich pakietów ICMP
   udp::endpoint remote_udp_endpoint;
 
   servers_ptr servers;

@@ -32,19 +32,24 @@ public:
           known_tcp_server_names(),
           opoznienia_service(OPOZNIENIA_SERVICE),
           ssh_service(SSH_SERVICE) {
-    /* dołączamy do grupy adresu 224.0.0.251, odbieramy na porcie 5353: */
-    recv_socket.open(udp::v4());
-    recv_socket.set_option(udp::socket::reuse_address(true));
-    recv_socket.bind(udp::endpoint(udp::v4(), MDNS_PORT));    // port 5353
-    recv_socket.set_option(boost::asio::ip::multicast::join_group(
-        address::from_string(MDNS_ADDRESS)));     // adres 224.0.0.251
+    try {
+      /* dołączamy do grupy adresu 224.0.0.251, odbieramy na porcie 5353: */
+      recv_socket.open(udp::v4());
+      recv_socket.set_option(udp::socket::reuse_address(true));
+      recv_socket.bind(udp::endpoint(udp::v4(), MDNS_PORT));    // port 5353
+      recv_socket.set_option(boost::asio::ip::multicast::join_group(
+          address::from_string(MDNS_ADDRESS)));     // adres 224.0.0.251
 
-    /* nie pozwalamy na wysyłanie do siebie: */
-    boost::asio::ip::multicast::enable_loopback option(false);
-    //send_socket.set_option(option);     // TODO turn on?
+      /* nie pozwalamy na wysyłanie do siebie: */
+      boost::asio::ip::multicast::enable_loopback option(false);
+      //send_socket.set_option(option);     // TODO turn on?
 
-    start_mdns_receiving();
-    start_mdns_ptr_query(boost::system::error_code());
+      start_mdns_receiving();
+      start_mdns_ptr_query();
+
+    } catch (boost::system::error_code ec) {
+      std::cerr << "Failed to start mDNS Client!\n";
+    }
 
 
 /////////// TODO tego ma nie być
@@ -69,9 +74,7 @@ public:
 private:
   /* Inicjuje zapytanie mdns typu PTR o usługę _opozenienia._udp.local,
    * które jest wysyłane w zadanych odstępach czasowych. */
-  void start_mdns_ptr_query(boost::system::error_code const& error) {
-    if (error)
-      throw boost::system::system_error(error);
+  void start_mdns_ptr_query() {
 
     std::cout << "mDNS CLIENT: mDNS PTR query!\n";
 
@@ -197,11 +200,8 @@ private:
 
   /* Ustawia timer na czas późniejszy o 'seconds' sekund względem poprzedniego czasu. */
   void reset_timer(int seconds) {
-    // TODO może jeden obiekt reprezentujący czas?
     timer.expires_at(timer.expires_at() + boost::posix_time::seconds(seconds));
-    timer.async_wait(boost::bind(&MdnsClient::start_mdns_ptr_query, this,
-        boost::asio::placeholders::error)); // TODO errors
-    // TODO czy to działa?
+    timer.async_wait(boost::bind(&MdnsClient::start_mdns_ptr_query, this));
   }
 
 

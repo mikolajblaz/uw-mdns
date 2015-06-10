@@ -24,22 +24,27 @@ public:
       local_ssh_name(get_local_ssh_name()),
       opoznienia_service(OPOZNIENIA_SERVICE),
       ssh_service(SSH_SERVICE) {
-    /* dołączamy do grupy adresu 224.0.0.251, odbieramy na porcie 5353: */
-    recv_socket.open(udp::v4());
-    recv_socket.set_option(udp::socket::reuse_address(true));
-    recv_socket.bind(udp::endpoint(udp::v4(), MDNS_PORT));    // port 5353
-    recv_socket.set_option(boost::asio::ip::multicast::join_group(
-        address::from_string(MDNS_ADDRESS)));     // adres 224.0.0.251
+    try {
+      /* dołączamy do grupy adresu 224.0.0.251, odbieramy na porcie 5353: */
+      recv_socket.open(udp::v4());
+      recv_socket.set_option(udp::socket::reuse_address(true));
+      recv_socket.bind(udp::endpoint(udp::v4(), MDNS_PORT));    // port 5353
+      recv_socket.set_option(boost::asio::ip::multicast::join_group(
+          address::from_string(MDNS_ADDRESS)));     // adres 224.0.0.251
 
-    /* nie pozwalamy na wysyłanie do siebie: */
-    boost::asio::ip::multicast::enable_loopback option(false);
-    //send_socket.set_option(option);     // TODO turn on?
+      /* nie pozwalamy na wysyłanie do siebie: */
+      boost::asio::ip::multicast::enable_loopback option(false);
+      //send_socket.set_option(option);     // TODO turn on?
 
-    /* łączymy się z adresem multicastowym do wysyłania: */
-    send_socket.connect(multicast_endpoint);
-    local_server_address = get_local_server_address();
+      /* łączymy się z adresem multicastowym do wysyłania: */
+      send_socket.connect(multicast_endpoint);
+      local_server_address = get_local_server_address();
 
-    start_receive();
+      start_receive();
+      
+    } catch (boost::system::error_code ec) {
+      std::cerr << "Failed to start mDNS Server!\n";
+    }
   }
 
 private:

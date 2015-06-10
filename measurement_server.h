@@ -13,8 +13,14 @@ using boost::asio::ip::udp;
 class MeasurementServer {
 public:
   MeasurementServer(boost::asio::io_service& io_service) :
-      socket(io_service, udp::endpoint(udp::v4(), UDP_PORT_DEFAULT)) {
-    start_receive();
+      socket(io_service, udp::v4()) {
+    boost::system::error_code error;
+    socket.bind(udp::endpoint(udp::v4(), UDP_PORT_DEFAULT), error);
+
+    if (error)
+      std::cerr << "Failed to start Measurement Server!\n";
+    else
+      start_receive();
   }
 
 private:

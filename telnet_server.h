@@ -15,12 +15,19 @@ public:
   TelnetServer(boost::asio::io_service& io_service, servers_ptr servers) :
       io_service(io_service),
       timer(io_service, boost::posix_time::seconds(0)),
-      tcp_acceptor(io_service, tcp::endpoint(tcp::v4(), UI_PORT_DEFAULT)),
+      tcp_acceptor(io_service, tcp::v4()),
       servers(servers),
       new_connection() {
 
-    init_updates(boost::system::error_code());
-    start_accept();
+    boost::system::error_code error;
+    tcp_acceptor.bind(tcp::endpoint(tcp::v4(), UI_PORT_DEFAULT), error);
+
+    if (error) {
+      std::cerr << "Failed to start Telnet Server!\n";
+    } else {
+      init_updates();
+      start_accept();
+    }
   }
 
 
@@ -36,21 +43,17 @@ private:
 
   /* dołącza nowe połączenie do listy połączeń i uruchamia w nim komunikację. */
   void handle_accept(boost::system::error_code const& error) {
-    if (error)
-      throw boost::system::system_error(error);
-
-    new_connection->activate();
-    connections.push_back(new_connection);
+    if (!error) {
+      new_connection->activate();
+      connections.push_back(new_connection);
+    }
 
     start_accept();
   }
 
   /* Inicjuje wysłanie pakietów aktualizujących ekran do wszystkich klientów telnet
    * oraz usuwa nieaktywne połączenia z listy połączeń. */
-  void init_updates(boost::system::error_code const& error) {
-    if (error)
-      throw boost::system::system_error(error);
-
+  void init_updates() {
     build_servers_table();
 
     for (auto it = connections.begin(); it != connections.end();) {
@@ -68,11 +71,8 @@ private:
 
   /* Ustawia timer na czas późniejszy o 'seconds' sekund względem poprzedniego czasu. */
   void reset_timer(float seconds) {
-    // TODO może jeden obiekt reprezentujący czas?
     timer.expires_at(timer.expires_at() + boost::posix_time::microseconds(seconds * SEC_TO_USEC));
-    timer.async_wait(boost::bind(&TelnetServer::init_updates, this,
-        boost::asio::placeholders::error)); // TODO errors
-    // TODO czy to działa?
+    timer.async_wait(boost::bind(&TelnetServer::init_updates, this));
   }
 
   /* Buduje tablicę drukowalnych i posortowanych serwerów. */
