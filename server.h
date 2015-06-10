@@ -19,6 +19,9 @@ using boost::asio::ip::icmp;
 
 class PrintServer;
 
+/* Klasa reprezentująca komputer o danym IP, który jest serwuje usługę
+ * _opoznienia._udp.local i/lub _ssh._tcp.local. Gromadzi informacje
+ * o danym serwerze i o pomiarach do niego wysłanych i zakończonych. */
 class Server {
   friend PrintServer;
 public:
@@ -124,13 +127,13 @@ private:
   void send_icmp_query(time_type start_time) {
     std::cout << *ip << ": ICMP query!\n";
     ++icmp_id;
-
-    std::string message("ICMP QUERY");        // TODO TODO TODO TODO
+    icmp_header icmp_header;
+    std::string icmp_message(even_decimal_to_bcd(ICMP_MESSAGE));
 
     send_buffer.consume(send_buffer.size());
-    default_icmp_header.sequence_number(icmp_id);
-    compute_checksum(default_icmp_header, message.begin(), message.end());
-    send_stream << default_icmp_header << message;
+    icmp_header.sequence_number(icmp_id);
+    compute_checksum(icmp_header, icmp_message.begin(), icmp_message.end());
+    send_stream << icmp_header << icmp_message;
 
     icmp_socket->async_send_to(send_buffer.data(), icmp_endpoint,
         boost::bind(&Server::handle_send, this,
@@ -147,22 +150,21 @@ private:
     tcp_sockets.push_front(tcp::socket(io_service, tcp::v4()));
 
     tcp_sockets.back().async_connect(tcp_endpoint,
-        boost::bind(&Server::receive_tcp_query, this,
-            boost::asio::placeholders::error, tcp_id));   // TODO dobrze
+        boost::bind(&Server::receive_tcp_query, this, tcp_id,
+            boost::asio::placeholders::error));
 
-    add_waiting_query(tcp_id, start_time, PROTOCOL::TCP);       // TODO chyba trzeba osobne sockety (>=10) :/
+    add_waiting_query(tcp_id, start_time, PROTOCOL::TCP);
 
     if (tcp_sockets.size() >= MAX_DELAYED_QUERIES)
       tcp_sockets.pop_back();            // usuwa pomiar jeśli jest za dużo
   }
 
-  void receive_tcp_query(boost::system::error_code const& error, long id) {
+  void receive_tcp_query(long id, boost::system::error_code const& error) {
     if (error) {
       unfinished_waiting_query(id, PROTOCOL::TCP);
     } else {
       std::cout << *ip << ": TCP RECEIVE query! ID[" << id << "]\n";
       finish_waiting_query(id, get_time_usec(), PROTOCOL::TCP);
-      //tcp_socket->close();
     }
   }
 
@@ -173,7 +175,7 @@ private:
     waiting[protocol].push_front(std::make_pair(id, start_time));
   }
 
-  /* Uniwersalny handler po wysłaniu dla wszystkich protokołów. */
+  /* Uniwersalny handler po wysłaniu protokołów UDP i ICMP. */
   void handle_send(boost::system::error_code const& error,          // TODO usunąć wszystkie placeholders! NA CO MI ONE!!!!!!
       std::size_t /*bytes_transferred*/) {
     if (error)
@@ -219,6 +221,14 @@ private:
     }
   }
 
+  /* Konwertuje liczbę w zapisie 10 o parzystej liczbie cyfr do systemu BCD. */
+  std::string even_decimal_to_bcd(std::string const& decimal) {
+    std::string result(decimal.size() / 2, '\0');
+    for (int i = 0; i < decimal.size(); i++)
+      result[i / 2] += ((decimal[i] - '0') & 0x0F) << (i % 2 ? 0 : 4);  // shift parzystych
+    return result;
+  }
+
 
 
   std::shared_ptr<address> ip;
@@ -232,8 +242,6 @@ private:
   std::shared_ptr<udp::socket>    udp_socket;  // gniazdo używane do wszstkich pakietów UDP
   std::shared_ptr<icmp::socket>   icmp_socket; // gniazdo używane do wszstkich pakietów ICMP
   std::list<tcp::socket>          tcp_sockets;
-
-  icmp_header default_icmp_header;
 
   bool active_udp;                    // czy pomiary UDP i ICMP są aktywne
   bool active_tcp;                    // czy pomiary TCP są aktywne

@@ -20,8 +20,8 @@ using boost::asio::ip::udp;
 using boost::asio::ip::tcp;
 using boost::asio::ip::icmp;
 
-/* Klasa do pomiarów opóźnień. Zawiera klienta mDNS i serwer telnetu.
- * Jest odowiedzialna za odbieranie oakietów UDP i ICMP oraz delegowanie
+/* Centralna klasa pomiarów opóźnień. Zawiera klienta mDNS i serwer telnetu.
+ * Jest odowiedzialna za odbieranie pakietów UDP i ICMP oraz delegowanie
  * ich do odpowiednich instancji klasy Server w mapie 'servers'.  */
 class MeasurementClient {
 public:

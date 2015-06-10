@@ -41,6 +41,8 @@ const std::string MDNS_ADDRESS = "224.0.0.251";
 const std::string OPOZNIENIA_SERVICE = "_opoznienia._udp.local.";   // TODO need it?
 const std::string SSH_SERVICE = "_ssh._tcp.local.";                      // TODO need it?
 
+const std::string ICMP_MESSAGE = "34686203";
+
 
 /* ################## default values #################### */
 
