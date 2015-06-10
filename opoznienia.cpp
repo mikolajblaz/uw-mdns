@@ -15,10 +15,22 @@ int main(int argc, char const *argv[]) {
   boost::asio::io_service io_service;         // do pomiarów czasu
   boost::asio::io_service io_service_servers; // dla serwerów opóźnień i mDNS
 
+  try {
+    MdnsServer mdns_server(io_service_servers);
+  } catch (boost::system::system_error e) {
+    std::cerr << "Failed to start mDNS Server!";
+  }
 
-	MdnsServer mdns_server(io_service_servers);
-  MeasurementServer measurement_server(io_service_servers);
-  MeasurementClient measurement_client(io_service);
+  try {
+    MeasurementServer measurement_server(io_service_servers);
+  } catch (boost::system::system_error e) {
+    std::cerr << "Failed to start Measurement Server!";
+  }
+  try {
+    MeasurementClient measurement_client(io_service);
+  } catch (boost::system::system_error e) {
+    std::cerr << "Failed to start Measurement Client!";
+  }
 
   std::thread servers_thread(
       boost::bind(&boost::asio::io_service::run, &io_service_servers));
