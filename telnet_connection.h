@@ -115,7 +115,7 @@ private:
   }
 
 
-  boost::array<char, BUFFER_SIZE> recv_buffer;
+  boost::array<char, 2> recv_buffer;  // bufor do odbierania znaków
   boost::asio::streambuf send_buffer; // bufor do wysyłania
   std::ostream send_stream;           // strumień do wysyłania
 

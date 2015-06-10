@@ -125,7 +125,7 @@ public:
     read_be(is, next_length);
     while (next_length != 0 && domain_name.data.size() <= MAX_DOMAINS_DEPTH) {
       is.read(buffer, next_length);
-      domain_name.data.push_back(std::string(buffer, next_length));    // TODO czy działa
+      domain_name.data.push_back(std::string(buffer, next_length));
       read_be(is, next_length);
     }
     if (domain_name.data.size() > MAX_DOMAINS_DEPTH)
@@ -215,7 +215,7 @@ public:
   const std::vector<MdnsQuestion>& get_questions() const { return questions; }
 
   void add_question(MdnsDomainName const& domain_name, QTYPE type) {
-    header.q_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
+    header.q_count(header.q_count() + 1);   // zwiększa licznik pytań w nagłówku
     questions.push_back(MdnsQuestion(domain_name, static_cast<uint16_t>(type)));
   }
 
@@ -349,7 +349,7 @@ public:
 
 private:
   MdnsDomainName name;
-  MdnsResourceRecord rr;    // TODO może dziedziczenie?
+  MdnsResourceRecord rr;
 };  // class MdnsAnswer
 
 
@@ -365,25 +365,25 @@ public:
 
   /* dodanie gotowej odpowiedzi klasy Answer. */
   void add_answer(MdnsAnswer const& answer) {
-    header.ans_count(header.ans_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
+    header.ans_count(header.ans_count() + 1);   // zwiększa licznik pytań w nagłówku
     answers.push_back(answer);
   }
 
   /* dodanie gotowej odpowiedzi klasy Answer. */
   void add_answer(MdnsAnswer&& answer) {
-    header.ans_count(header.ans_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
+    header.ans_count(header.ans_count() + 1);   // zwiększa licznik pytań w nagłówku
     answers.push_back(answer);
   }
 
   /* dodanie odpowiedzi typu "PTR" */
   void add_answer(std::string const& query_name, QTYPE type, std::string const& server_name, uint16_t ttl) {
-    header.ans_count(header.ans_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
+    header.ans_count(header.ans_count() + 1);   // zwiększa licznik pytań w nagłówku
     answers.push_back(MdnsAnswer(query_name, static_cast<uint16_t>(type), INTERNET_CLASS,
         ttl, server_name));
   }
   /* dodanie odpowiedzi typu "A" */
   void add_answer(std::string const& query_name, QTYPE type, uint16_t server_address, uint16_t ttl) {
-    header.ans_count(header.ans_count() + 1);   // zwiększa licznik pytań w nagłówku  // TODO ładniej/efektywniej
+    header.ans_count(header.ans_count() + 1);   // zwiększa licznik pytań w nagłówku
     answers.push_back(MdnsAnswer(query_name, static_cast<uint16_t>(type), INTERNET_CLASS,
         ttl, server_address));
   }

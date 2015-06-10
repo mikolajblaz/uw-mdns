@@ -10,6 +10,8 @@
 
 using boost::asio::ip::udp;
 
+
+/* Serwer do pomiarów opóźnień przez UDP - taki jak 'czekamnaudp' w zadaniu 1. */
 class MeasurementServer {
 public:
   MeasurementServer(boost::asio::io_service& io_service) :
@@ -39,9 +41,9 @@ private:
 
       socket.async_send_to(boost::asio::buffer(time_buffer), remote_endpoint,
           boost::bind(&MeasurementServer::handle_send, this));
-
-      start_receive();
     }
+    
+    start_receive();
   }
 
   void handle_send() {}

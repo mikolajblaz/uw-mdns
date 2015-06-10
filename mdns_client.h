@@ -52,24 +52,6 @@ public:
     } catch (boost::system::error_code ec) {
       std::cerr << "Failed to start mDNS Client!\n";
     }
-
-
-/////////// TODO tego ma nie być
-    udp::resolver resolver(io_service);
-    udp::resolver::query query(udp::v4(), "localhost", "10001");
-    std::shared_ptr<udp::endpoint> udp_endpoint_ptr(new udp::endpoint(*resolver.resolve(query)));
-    std::shared_ptr<address> ip_ptr(new address(udp_endpoint_ptr->address()));
-    auto it = servers->emplace(*ip_ptr, Server(ip_ptr, io_service, udp_socket, icmp_socket));
-    it.first->second.enable_udp(1000);
-
-    /*tcp::resolver resolver2(io_service);
-    tcp::resolver::query query2(tcp::v4(), "mimuw.edu.pl", "80");
-    std::shared_ptr<tcp::endpoint> tcp_endpoint_ptr(new tcp::endpoint(*resolver2.resolve(query2)));
-    std::shared_ptr<address> ip_ptr2(new address(tcp_endpoint_ptr->address()));
-    servers->insert(std::make_pair(*ip_ptr2, Server(ip_ptr2, std::shared_ptr<udp::endpoint>(),
-                                                  tcp_endpoint_ptr,
-                                                  std::shared_ptr<icmp::endpoint>(), io_service)));
-    */
   }
 
 
