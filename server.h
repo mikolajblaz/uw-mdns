@@ -52,6 +52,20 @@ public:
           active_udp(s.active_udp),
           active_tcp(s.active_tcp) {}
 
+
+  /* Zwraca średnie opóźnienie wszystkich protokołów w sekundach. */
+  float delay_sec() {
+    float result = 0;
+    short proto_cnt = 0; // liczba aktywnych protokołów
+    for (int proto = PROTOCOL::UDP; proto < PROTOCOL_COUNT; proto++) {
+      if (!finished[proto].empty()) {
+        result += (float) delays_sum[proto] / finished[proto].size() / SEC_TO_USEC;
+        proto_cnt++;
+      }
+    }
+    return proto_cnt ? result / proto_cnt : 0;
+  }
+
   /* Aktywuje pomiary przez UDP i ICMP. */
   void enable_udp(uint32_t ttl) {
     active_udp = true;

@@ -17,7 +17,7 @@ void parse_arguments(int argc, char const *argv[], int& udp_port,
     int& ui_port, int& measurement_interval, int& mdns_interval,
     float&  ui_refresh_interval, bool& broadcast_ssh) {
   for (int arg = 1; arg < argc; ++arg) {
-    if (strcmp(argv[arg], "-s")) {
+    if (strcmp(argv[arg], "-s") == 0) {
       broadcast_ssh = true;
 
     } else if (arg == argc - 1) {
@@ -25,17 +25,17 @@ void parse_arguments(int argc, char const *argv[], int& udp_port,
       throw std::invalid_argument("parsing error");
 
     } else {    // mamy przed sobą 2 argumenty
-      if (strcmp(argv[arg], "-v")) {    // float
+      if (strcmp(argv[arg], "-v") == 0) {    // float
         ui_refresh_interval = std::stof(argv[arg + 1]);
       } else {          // musimy wczytać wartość typu int
         int value = std::stoi(argv[arg + 1]);
-        if (strcmp(argv[arg], "-u")) {
+        if (strcmp(argv[arg], "-u") == 0) {
           udp_port = value;
-        } else if (strcmp(argv[arg], "-U")) {
+        } else if (strcmp(argv[arg], "-U") == 0) {
           ui_port = value;
-        } else if (strcmp(argv[arg], "-t")) {
+        } else if (strcmp(argv[arg], "-t") == 0) {
           measurement_interval = value;
-        } else if (strcmp(argv[arg], "-T")) {
+        } else if (strcmp(argv[arg], "-T") == 0) {
           mdns_interval = value;
         } else {
           throw std::invalid_argument("unkown argument type");

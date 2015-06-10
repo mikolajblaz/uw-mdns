@@ -72,7 +72,12 @@ private:
 
   /* Buduje tablicę drukowalnych i posortowanych serwerów. */
   void build_servers_table() {
-    const float max_delay = MAX_DELAY_TIME;     // opóźnienie w sekundach
+    float max_delay = 0;     // maksymalne opóźnienie w sekundach
+    for (auto it = servers->begin(); it != servers->end(); ++it) {
+      if (it->second.delay_sec() > max_delay) {
+        max_delay = it->second.delay_sec();
+      }
+    }
 
     servers_table.clear();
     servers_table.reserve(servers->size());
