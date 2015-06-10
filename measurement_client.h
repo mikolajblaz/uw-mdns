@@ -25,15 +25,16 @@ using boost::asio::ip::icmp;
  * ich do odpowiednich instancji klasy Server w mapie 'servers'.  */
 class MeasurementClient {
 public:
-  MeasurementClient(boost::asio::io_service& io_service) :
-      timer(io_service, boost::posix_time::seconds(0)),
-      recv_buffer(),
-      recv_stream(&recv_buffer),
-      udp_socket(new udp::socket(io_service, udp::v4())),
-      icmp_socket(new icmp::socket(io_service, icmp::v4())),
-      servers(new servers_map),
-      mdns_client(io_service, servers, udp_socket, icmp_socket),
-      telnet_server(io_service, servers) {
+  MeasurementClient(boost::asio::io_service& io_service, int udp_port, int ui_port,
+      int measurement_interval, int mdns_interval, float ui_refresh_interval) :
+          timer(io_service, boost::posix_time::seconds(0)),
+          recv_buffer(),
+          recv_stream(&recv_buffer),
+          udp_socket(new udp::socket(io_service, udp::v4())),
+          icmp_socket(new icmp::socket(io_service, icmp::v4())),
+          servers(new servers_map),
+          mdns_client(io_service, servers, udp_socket, icmp_socket, udp_port, mdns_interval),
+          telnet_server(io_service, servers, ui_port, ui_refresh_interval) {
 
     start_udp_receiving();
     start_icmp_receiving();

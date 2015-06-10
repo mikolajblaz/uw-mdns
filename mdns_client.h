@@ -15,7 +15,8 @@ using boost::asio::ip::address_v4;
 class MdnsClient {
 public:
   MdnsClient(boost::asio::io_service& io_service, servers_ptr servers,
-      std::shared_ptr<udp::socket> udp_socket, std::shared_ptr<icmp::socket> icmp_socket) :
+      std::shared_ptr<udp::socket> udp_socket, std::shared_ptr<icmp::socket> icmp_socket,
+      int mdns_interval, int mdns_port) :
           timer(io_service, boost::posix_time::seconds(0)),
           io_service(io_service),
           udp_socket(udp_socket),
@@ -24,19 +25,20 @@ public:
           send_buffer(),
           recv_stream(&recv_buffer),
           send_stream(&send_buffer),
-          multicast_endpoint(address::from_string(MDNS_ADDRESS), MDNS_PORT),
+          multicast_endpoint(address::from_string(MDNS_ADDRESS), mdns_port),
           send_socket(io_service, multicast_endpoint.protocol()),
           recv_socket(io_service),
           servers(servers),
           known_udp_server_names(),
           known_tcp_server_names(),
           opoznienia_service(OPOZNIENIA_SERVICE),
-          ssh_service(SSH_SERVICE) {
+          ssh_service(SSH_SERVICE),
+          mdns_interval(mdns_interval) {
     try {
       /* dołączamy do grupy adresu 224.0.0.251, odbieramy na porcie 5353: */
       recv_socket.open(udp::v4());
       recv_socket.set_option(udp::socket::reuse_address(true));
-      recv_socket.bind(udp::endpoint(udp::v4(), MDNS_PORT));    // port 5353
+      recv_socket.bind(udp::endpoint(udp::v4(), mdns_port));    // port 5353
       recv_socket.set_option(boost::asio::ip::multicast::join_group(
           address::from_string(MDNS_ADDRESS)));     // adres 224.0.0.251
 
@@ -84,7 +86,7 @@ private:
     query.add_question(ssh_service, QTYPE::PTR);
     send_mdns_query(query);
 
-    reset_timer(MDNS_INTERVAL_DEFAULT);   // ustawienie licznika
+    reset_timer(mdns_interval);   // ustawienie licznika
   }
 
   /* Inicjuje jednorazowe zapytanie mdns typu A o ip servera o nazwie 'server_name'. */
@@ -226,6 +228,8 @@ private:
   std::set<MdnsDomainName> known_tcp_server_names;  // zbiór znanych nazw serwerów udostępniających _ssh.local
   const MdnsDomainName opoznienia_service;
   const MdnsDomainName ssh_service;
+
+  int mdns_interval;
 };
 
 

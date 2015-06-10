@@ -12,7 +12,7 @@ using boost::asio::ip::address;
 
 class MdnsServer {
 public:
-  MdnsServer(boost::asio::io_service& io_service) :
+  MdnsServer(boost::asio::io_service& io_service, bool broadcast_ssh) :
       recv_buffer(),
       send_buffer(),
       recv_stream(&recv_buffer),
@@ -23,7 +23,8 @@ public:
       local_opoznienia_name(get_local_opoznienia_name()),
       local_ssh_name(get_local_ssh_name()),
       opoznienia_service(OPOZNIENIA_SERVICE),
-      ssh_service(SSH_SERVICE) {
+      ssh_service(SSH_SERVICE),
+      broadcast_ssh(broadcast_ssh) {
     try {
       /* dołączamy do grupy adresu 224.0.0.251, odbieramy na porcie 5353: */
       recv_socket.open(udp::v4());
@@ -41,7 +42,7 @@ public:
       local_server_address = get_local_server_address();
 
       start_receive();
-      
+
     } catch (boost::system::error_code ec) {
       std::cerr << "Failed to start mDNS Server!\n";
     }
@@ -129,11 +130,11 @@ private:
     if (type == static_cast<uint16_t>(QTYPE::PTR)) {
       if (name == opoznienia_service)
         return MdnsAnswer(name, type, _class, ttl, local_opoznienia_name);
-      if (name == ssh_service)
+      if (name == ssh_service && broadcast_ssh)   // tylko jeśli rozgłaszamy ssh
         return MdnsAnswer(name, type, _class, ttl, local_ssh_name);
 
     } else if (type == static_cast<uint16_t>(QTYPE::A)) {
-      if (name == local_opoznienia_name || name == local_ssh_name)
+      if (name == local_opoznienia_name || (name == local_ssh_name && broadcast_ssh))
         return MdnsAnswer(name, type, _class, ttl, local_server_address);
     }
 
@@ -164,6 +165,8 @@ private:
   const MdnsDomainName local_ssh_name;        // rozgłaszana nazwa serwera usługi ssh
   const MdnsDomainName opoznienia_service;
   const MdnsDomainName ssh_service;
+
+  bool broadcast_ssh;
 };
 
 #endif  // MDNS_SERVER_H

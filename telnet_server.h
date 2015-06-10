@@ -12,12 +12,14 @@ using boost::asio::ip::tcp;
 
 class TelnetServer {
 public:
-  TelnetServer(boost::asio::io_service& io_service, servers_ptr servers) :
-      io_service(io_service),
-      timer(io_service, boost::posix_time::seconds(0)),
-      tcp_acceptor(io_service, tcp::endpoint(tcp::v4(), UI_PORT_DEFAULT)),
-      servers(servers),
-      new_connection() {
+  TelnetServer(boost::asio::io_service& io_service, servers_ptr servers,
+      int ui_port, float ui_refresh_interval) :
+          io_service(io_service),
+          timer(io_service, boost::posix_time::seconds(0)),
+          tcp_acceptor(io_service, tcp::endpoint(tcp::v4(), ui_port)),
+          servers(servers),
+          new_connection(),
+          ui_refresh_interval(ui_refresh_interval) {
 
     init_updates();
     start_accept();
@@ -58,7 +60,7 @@ private:
       }
     }
 
-    reset_timer(UI_REFRESH_INTERVAL_DEFAULT);
+    reset_timer(ui_refresh_interval);
   }
 
 
@@ -91,6 +93,8 @@ private:
   std::shared_ptr<TelnetConnection> new_connection;
 
   std::vector<PrintServer> servers_table;
+
+  float ui_refresh_interval;
 };
 
 #endif  // TELNET_SERVER_H

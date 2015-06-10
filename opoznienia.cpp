@@ -13,7 +13,7 @@
 
 
 /* Parsuje argumenty. */
-void parse_arguments(int argc, char const *argv[], int& ttl, int& udp_port,
+void parse_arguments(int argc, char const *argv[], int& udp_port,
     int& ui_port, int& measurement_interval, int& mdns_interval,
     float&  ui_refresh_interval, bool& broadcast_ssh) {
   for (int arg = 1; arg < argc; ++arg) {
@@ -49,16 +49,15 @@ void parse_arguments(int argc, char const *argv[], int& ttl, int& udp_port,
 
 int main(int argc, char const *argv[]) {
   /* Domyślne wartości parametrów: */
-  int ttl = TTL_DEFAULT;   // czas w sekundach
-  int udp_port = UDP_PORT_DEFAULT;
-  int ui_port = UI_PORT_DEFAULT;
+  int udp_port = UDP_PORT_DEFAULT;    // port usługi opóźnień (udostępnianie i łączenie)
+  int ui_port = UI_PORT_DEFAULT;      // port do udostępniania interfejsu telnet
   int measurement_interval = MEASUREMENT_INTERVAL_DEFAULT;
   int mdns_interval = MDNS_INTERVAL_DEFAULT;
   float ui_refresh_interval = UI_REFRESH_INTERVAL_DEFAULT;
-  bool broadcast_ssh = BROADCAST_SSH_DEFAULT;
+  bool broadcast_ssh = BROADCAST_SSH_DEFAULT;     // czy rozgłaszać _ssh._tcp.local
 
   try {
-    parse_arguments(argc, argv, ttl, udp_port, ui_port, measurement_interval,
+    parse_arguments(argc, argv, udp_port, ui_port, measurement_interval,
         mdns_interval, ui_refresh_interval, broadcast_ssh);
   } catch (std::invalid_argument) {
     std::cout << "Error parsing arguments: invalid values types!\n";
@@ -68,15 +67,18 @@ int main(int argc, char const *argv[]) {
     return 1;
   }
 
+  
+
 
   /* Tworzymy dwa osobne serwisy: */
   boost::asio::io_service io_service;         // do pomiarów czasu
   boost::asio::io_service io_service_servers; // dla serwerów opóźnień i mDNS
 
 
-	MdnsServer mdns_server(io_service_servers);
+	MdnsServer mdns_server(io_service_servers, broadcast_ssh);
   MeasurementServer measurement_server(io_service_servers);
-  MeasurementClient measurement_client(io_service);
+  MeasurementClient measurement_client(io_service, udp_port, ui_port,
+      measurement_interval, mdns_interval, ui_refresh_interval);
 
   std::thread servers_thread(
       boost::bind(&boost::asio::io_service::run, &io_service_servers));
